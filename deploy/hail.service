@@ -1,0 +1,14 @@
+[Unit]
+Description=hail - on-demand NYC subway arrivals
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+WorkingDirectory=%h/hail
+ExecStart=%h/.bun/bin/bun src/server.ts
+Environment=PORT=3000
+Environment=HOST=127.0.0.1
+Restart=on-failure
+
+[Install]
+WantedBy=default.target

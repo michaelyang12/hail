@@ -90,6 +90,7 @@ export function renderPage(q: string, a: Answer | null): string {
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#161615">
 <title>hail</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 16 16%22%3E%3Ccircle cx=%228%22 cy=%228%22 r=%227%22 fill=%22%23ff5b14%22/%3E%3C/svg%3E">
 <style>${css}</style>
 </head>
 <body>
