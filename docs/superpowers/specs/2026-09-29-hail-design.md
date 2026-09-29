@@ -66,7 +66,7 @@ Per-feed in-memory cache with ~20s TTL, populated only on request. Collapses rap
 ## Fuzzy match (`match.ts`)
 
 - Candidates: only stations whose routes include the parsed line.
-- Score each candidate; highest wins. The scoring function is written by the user (token-prefix overlap and/or edit distance).
+- Score each candidate; highest wins. Scoring combines token-prefix overlap (abbreviations) with edit distance (typos).
 - Ties: show the winner plus `also: <other names>`.
 - No candidate above threshold: error.
 
