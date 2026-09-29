@@ -48,8 +48,8 @@ export async function answer(q: string, deps: Deps = { getArrivals: liveArrivals
   const dirs = directions(best.v.dir, station);
   const groups = dirs
     .map((dir) => ({ dir, label: label(station, dir), arrivals: feed.arrivals.filter((a) => a.dir === dir).slice(0, PER_DIR) }))
-    // A terminal's "Last Stop" side never has departures; hide it unless asked for.
-    .filter((g) => dirs.length === 1 || g.arrivals.length > 0 || g.label !== "Last Stop");
+    // At a terminal the "Last Stop" side only lists trains ending their run; hide it unless asked for.
+    .filter((g) => dirs.length === 1 || g.label !== "Last Stop");
 
   return { kind: "ok", line: p.line, station, also, groups, ageSecs: feed.ageSecs };
 }

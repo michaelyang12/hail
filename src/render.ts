@@ -41,7 +41,7 @@ function bullet(route: string): string {
 }
 
 export function fmtMins(secs: number): string {
-  return secs < 30 ? "now" : `${Math.floor(secs / 60)} min`;
+  return secs < 30 ? "now" : `${Math.max(1, Math.floor(secs / 60))} min`;
 }
 
 export function renderAnswer(a: Answer): string {

@@ -53,3 +53,9 @@ test("feed failure becomes a friendly error", async () => {
   });
   expect(a).toEqual({ kind: "error", slot: null, message: "MTA feed unavailable, try again" });
 });
+
+test("terminal hides the Last Stop side (terminating trains)", async () => {
+  const a = await answer("7 flushing", { getArrivals: fake({ ageSecs: 0, arrivals: [{ dir: "N", route: "7", secs: 60 }, { dir: "S", route: "7", secs: 90 }] }) });
+  if (a.kind !== "ok") throw new Error(a.message);
+  expect(a.groups.map((g) => g.label)).toEqual(["Manhattan"]);
+});

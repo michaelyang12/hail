@@ -15,6 +15,7 @@ const ok: Answer = {
 test("minute formatting", () => {
   expect(fmtMins(-10)).toBe("now");
   expect(fmtMins(20)).toBe("now");
+  expect(fmtMins(45)).toBe("1 min");
   expect(fmtMins(89)).toBe("1 min");
   expect(fmtMins(600)).toBe("10 min");
 });
