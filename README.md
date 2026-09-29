@@ -24,7 +24,16 @@ bun run typecheck
 
 `PORT` and `HOST` env vars override the defaults (`3000`, `127.0.0.1`).
 
-## Deploy (systemd user service + Cloudflare Tunnel)
+## Deploy with Docker
+
+```sh
+docker build -t hail .
+docker run -d --name hail --restart unless-stopped -p 127.0.0.1:3000:3000 hail
+```
+
+Publishing on `127.0.0.1` keeps it reachable only from the host (and the tunnel). Then add the tunnel rule below.
+
+## Deploy without Docker (systemd user service + Cloudflare Tunnel)
 
 ```sh
 git clone git@github.com:michaelyang12/hail.git ~/hail && cd ~/hail && bun install --production

@@ -28,3 +28,11 @@ const server = Bun.serve({
 });
 
 console.log(`hail listening on http://${server.hostname}:${server.port}`);
+
+// As PID 1 in a container, signals without a handler are ignored, so `docker stop` would hang until SIGKILL.
+for (const sig of ["SIGTERM", "SIGINT"] as const) {
+  process.on(sig, () => {
+    server.stop();
+    process.exit(0);
+  });
+}
