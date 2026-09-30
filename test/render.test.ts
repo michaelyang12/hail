@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test";
-import { fmtMins, renderAnswer, renderPage, type Answer } from "../src/render";
+import { fmtMins, renderAnswer, renderPage, type Answer, type BusAnswer } from "../src/render";
 import { stations } from "../src/stations";
 
 const a31 = stations.find((s) => s.stopId === "A31")!;
@@ -55,4 +55,59 @@ test("empty page has placeholder and no answer", () => {
   const html = renderPage("", null);
   expect(html).toContain('placeholder="A downtown 14th st"');
   expect(html).toContain(`id="hint" class="hint"`);
+});
+
+const bus: BusAnswer = {
+  kind: "bus",
+  route: { key: "M15", name: "M15", color: "006CB7", text: "FFFFFF" },
+  groups: [
+    {
+      dir: "S",
+      label: "South Ferry",
+      stop: "2 Av/E 22 St",
+      arrivals: [
+        { dir: 1, route: "M15", secs: 10, stopsAway: 0, proximity: "at stop" },
+        { dir: 1, route: "M15", secs: 190, stopsAway: 2, proximity: "2 stops away" },
+      ],
+    },
+  ],
+  also: [],
+  ageSecs: 5,
+};
+
+test("bus answer: badge, headsign, minutes plus stops away", () => {
+  const html = renderAnswer(bus);
+  expect(html).toContain(`class="badge" style="--c:#006CB7;--t:#FFFFFF">M15<`);
+  expect(html).toContain("↓ South Ferry");
+  expect(html).toContain("2 Av/E 22 St");
+  expect(html).toMatch(/at stop<\/span><span class="eta now">now</);
+  expect(html).toMatch(/2 stops<\/span><span class="eta">3 min</);
+});
+
+test("bus without a prediction shows distance, not a time", () => {
+  const g = { ...bus.groups[0]!, arrivals: [{ dir: 1 as const, route: "M15", secs: null, stopsAway: 31, proximity: "4.1 miles away" }] };
+  const html = renderAnswer({ ...bus, groups: [g] });
+  expect(html).toContain("4.1 miles away");
+  expect(html).toContain(`class="eta far">—`);
+});
+
+test("bus groups at different corners name their stop", () => {
+  const html = renderAnswer({
+    ...bus,
+    groups: [
+      { dir: "N", label: "East Harlem 125 St", stop: "1 Av/E 23 St", arrivals: [] },
+      { ...bus.groups[0]!, arrivals: [] },
+    ],
+    also: ["2 Av/E 25 St"],
+  });
+  expect(html).toContain("↑ East Harlem 125 St · 1 Av/E 23 St");
+  expect(html).toContain("no M15 buses on the way");
+  expect(html).toContain(`href="/?q=M15%202%20Av%2FE%2025%20St"`);
+});
+
+test("hint row shows a train and a bus example", () => {
+  const html = renderPage("", null);
+  expect(html).toContain(`<span class="ex">A</span>`);
+  expect(html).toContain(`<span class="ex">M15</span>`);
+  expect(html).toContain("nyc subway · bus");
 });

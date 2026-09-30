@@ -49,10 +49,41 @@ export function fmtMins(secs: number): string {
   return secs < 30 ? "now" : `${Math.max(1, Math.floor(secs / 60))} min`;
 }
 
+const stale = (ageSecs: number) => (ageSecs > STALE_SECS ? `<div class="stale">data ${Math.floor(ageSecs / 60)}m old</div>` : "");
+
+const ARROW: Record<string, string> = { N: "↑", S: "↓", E: "→", W: "←" };
+const hex = (c: string, fallback: string) => (/^[0-9a-f]{6}$/i.test(c) ? `#${c}` : fallback);
+
+function badge(r: BusRouteInfo): string {
+  return `<span class="badge" style="--c:${hex(r.color, "#0039a6")};--t:${hex(r.text, "#fff")}">${esc(r.name)}</span>`;
+}
+
+// Bus predictions are rougher than train ones, so distance rides along with the time.
+function busRow(b: BusArrival): string {
+  const at = b.proximity === "at stop";
+  // Stop counts read better than Bus Time's text, except near the stop or with no prediction ("4.1 miles away").
+  const counted = b.secs !== null && b.stopsAway !== null && !at && b.proximity !== "approaching";
+  const away = counted ? `${b.stopsAway} stop${b.stopsAway === 1 ? "" : "s"}` : b.proximity;
+  const eta = b.secs === null ? `<span class="eta far">—</span>` : `<span class="eta${at || b.secs < 30 ? " now" : ""}">${at ? "now" : fmtMins(b.secs)}</span>`;
+  return `<div class="row"><span class="away">${esc(away)}</span>${eta}</div>`;
+}
+
 function renderBus(a: BusAnswer): string {
-  return a.groups
-    .map((g) => `<div class="grp"><div class="dir">${esc(g.label)} · ${esc(g.stop)}</div>${g.arrivals.map((b) => `<div class="row">${esc(b.route)} ${b.secs === null ? esc(b.proximity) : fmtMins(b.secs)}</div>`).join("")}</div>`)
+  const stops = [...new Set(a.groups.map((g) => g.stop))];
+  const shared = stops.length === 1;
+  const groups = a.groups
+    .map((g) => {
+      const rows = g.arrivals.length ? g.arrivals.map(busRow).join("") : `<div class="none">no ${esc(a.route.name)} buses on the way</div>`;
+      const where = shared ? "" : ` · ${esc(g.stop)}`;
+      return `<div class="grp"><div class="dir">${g.dir ? ARROW[g.dir] : "•"} ${esc(g.label)}${where}</div>${rows}</div>`;
+    })
     .join("");
+  const also = a.also.length
+    ? `<div class="also">also: ${a.also
+        .map((n) => `<a href="/?q=${encodeURIComponent(`${a.route.name} ${n}`)}">${esc(n)}</a>`)
+        .join(", ")}</div>`
+    : "";
+  return `<div class="stn">${badge(a.route)}${shared ? `<span>${esc(stops[0]!)}</span>` : ""}</div>` + groups + also + stale(a.ageSecs);
 }
 
 export function renderAnswer(a: Answer): string {
@@ -73,10 +104,9 @@ export function renderAnswer(a: Answer): string {
         .map((s) => `<a href="/?q=${encodeURIComponent(`${a.line} ${s.name}`)}">${esc(s.name)}</a>`)
         .join(", ")}</div>`
     : "";
-  const stale = a.ageSecs > STALE_SECS ? `<div class="stale">data ${Math.floor(a.ageSecs / 60)}m old</div>` : "";
   return (
     `<div class="stn"><span>${esc(a.station.name)}</span><span class="routes">${a.station.routes.map(bullet).join("")}</span></div>` +
-    groups + also + stale
+    groups + also + stale(a.ageSecs)
   );
 }
 
@@ -85,6 +115,7 @@ export function renderHint(slot: "line" | "stop" | null): string {
   return (
     s("LINE", slot === "line") + s("[DIR]", false, " opt") + s("STOP", slot === "stop") +
     `<span class="ex">A</span><span class="ex">up / down</span><span class="ex">14th st</span>` +
+    `<span class="ex">M15</span><span class="ex">south / ferry</span><span class="ex">1st av 23</span>` +
     `<span class="ex more"></span><span class="ex more">n / s · bronx / brooklyn / queens / manhattan</span><span class="ex more"></span>`
   );
 }
@@ -107,7 +138,7 @@ export function renderPage(q: string, a: Answer | null): string {
 </head>
 <body>
 <form class="device" action="/" method="get" autocomplete="off">
-<div class="top"><span class="brand"><span class="led"></span>hail</span><span>nyc subway</span></div>
+<div class="top"><span class="brand"><span class="led"></span>hail</span><span>nyc subway · bus</span></div>
 <div class="screen">
 <label class="prompt"><b>&gt;</b><input name="q" value="${esc(q)}" placeholder="A downtown 14th st" aria-label="query" autocapitalize="off" autocorrect="off" spellcheck="false" enterkeyhint="go"${a ? "" : " autofocus"}></label>
 <div id="ans" class="ans">${a ? renderAnswer(a) : ""}</div>
