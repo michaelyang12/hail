@@ -121,6 +121,14 @@ test("bus header names the cross street both corners share", () => {
   expect(html).toContain(`<span class="where">1 Av/E 14 St</span>`);
   expect(renderAnswer(bus)).toContain(`M15</span><span>2 Av/E 22 St</span></div>`);
   expect(renderAnswer(bus)).not.toContain(`class="where"`);
+  const same = renderAnswer({ ...bus, groups: [{ ...g, stop: "E 23 St/Park Av South" }, { ...g, dir: "N", stop: "E 23 St / Park Av South" }] });
+  expect(same).toContain(`M15</span><span>E 23 St/Park Av South</span></div>`);
+  expect(same).not.toContain(`class="where"`);
+});
+
+test("a bus under one stop away uses Bus Time's text, not 0 stops", () => {
+  const g = { ...bus.groups[0]!, arrivals: [{ dir: 1 as const, route: "M15", secs: 60, stopsAway: 0, proximity: "< 1 stop away" }] };
+  expect(renderAnswer({ ...bus, groups: [g] })).toContain("<small>&lt; 1 stop away</small>");
 });
 
 test("hint examples are links that work without JS", () => {

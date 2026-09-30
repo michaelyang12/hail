@@ -77,26 +77,29 @@ const alsoLinks = (prefix: string, names: string[]) =>
 // Bus predictions are rougher than train ones, so distance rides along with the time.
 function busTime(b: BusArrival): string {
   const at = b.proximity === "at stop";
-  // Stop counts read better than Bus Time's text, except near the stop or with no prediction ("4.1 miles away").
-  const counted = b.secs !== null && b.stopsAway !== null && !at && b.proximity !== "approaching";
+  // Stop counts read better than Bus Time's text, except near the stop ("< 1 stop away") or with no prediction ("4.1 miles away").
+  const counted = b.secs !== null && !!b.stopsAway && !at && b.proximity !== "approaching";
   const away = counted ? `${b.stopsAway} stop${b.stopsAway === 1 ? "" : "s"}` : b.proximity;
   if (b.secs === null) return time(0, away, true);
   return time(at ? 0 : b.secs, away);
 }
 
-// Stop names are cross streets ("1 Av/E 14 St"). When the two directions stop at
-// different corners, the street they share names the place, like a station name.
+// Stop names are cross streets ("1 Av/E 14 St"). Opposite sides of one corner are
+// separate stops, often spelled differently ("E 23 St / Park Av South").
+const streets = (stop: string) => stop.split("/").map((p) => p.trim().toLowerCase());
+const corner = (stop: string) => streets(stop).toSorted().join("/");
+
+// When the directions stop at different corners, the street they share names the place, like a station name.
 function place(stops: string[]): string {
-  if (stops.length === 1) return stops[0]!;
-  const parts = stops.map((s) => s.split("/").map((p) => p.trim()));
-  const common = parts[0]!.find((p) => parts.every((ps) => ps.some((q) => q.toLowerCase() === p.toLowerCase())));
-  return common ?? stops[0]!;
+  const parts = stops.map(streets);
+  const i = parts[0]!.findIndex((p) => parts.every((ps) => ps.includes(p)));
+  return i < 0 ? stops[0]! : stops[0]!.split("/")[i]!.trim();
 }
 
 // Riders know a bus by where it's headed, so the headsign leads and the compass arrow trails.
 function renderBus(a: BusAnswer): string {
-  const stops = [...new Set(a.groups.map((g) => g.stop))];
-  const shared = stops.length === 1;
+  const stops = a.groups.map((g) => g.stop);
+  const shared = new Set(stops.map(corner)).size === 1;
   const groups = a.groups
     .map((g) => {
       const times = g.arrivals.length ? g.arrivals.map(busTime).join("") : `<span class="none">no ${esc(a.route.name)} buses on the way</span>`;
@@ -105,7 +108,7 @@ function renderBus(a: BusAnswer): string {
       return grp(`<span class="to">${esc(g.label)}</span>${arrow}${where}`, times);
     })
     .join("");
-  return `<div class="stn">${badge(a.route)}<span>${esc(place(stops))}</span></div>` + groups + alsoLinks(a.route.name, a.also) + stale(a.ageSecs);
+  return `<div class="stn">${badge(a.route)}<span>${esc(shared ? stops[0]! : place(stops))}</span></div>` + groups + alsoLinks(a.route.name, a.also) + stale(a.ageSecs);
 }
 
 export function renderAnswer(a: Answer): string {
