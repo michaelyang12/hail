@@ -24,8 +24,7 @@ test("answer shows station, direction, arrivals", () => {
   const html = renderAnswer(ok);
   expect(html).toContain("14 St");
   expect(html).toContain("Downtown");
-  expect(html).toContain("<b>1</b> min");
-  expect(html).toContain("<b>10</b> min");
+  expect(html).toContain(`<span class="t"><b>1</b> min</span><span class="t"><b>10</b> min</span>`);
   expect(html).not.toContain("old");
 });
 
@@ -84,20 +83,13 @@ const bus: BusAnswer = {
   ageSecs: 5,
 };
 
-test("bus answer: badge, headsign before arrow, minutes plus stops away", () => {
+test("bus answer: badge, headsign before arrow, minutes only", () => {
   const html = renderAnswer(bus);
   expect(html).toContain(`class="badge" style="--c:#006CB7;--t:#FFFFFF">M15<`);
   expect(html).toContain(`<span class="to">South Ferry</span><span class="cmp">↓</span>`);
   expect(html).toContain("2 Av/E 22 St");
-  expect(html).toContain(`<span class="t now"><span><b>now</b></span><small>at stop</small>`);
-  expect(html).toContain(`<span class="t"><span><b>3</b> min</span><small>2 stops</small>`);
-});
-
-test("bus without a prediction shows distance, not a time", () => {
-  const g = { ...bus.groups[0]!, arrivals: [{ dir: 1 as const, route: "M15", secs: null, stopsAway: 31, proximity: "4.1 miles away" }] };
-  const html = renderAnswer({ ...bus, groups: [g] });
-  expect(html).toContain("4.1 miles away");
-  expect(html).toContain(`class="t far"><span><b>—</b>`);
+  expect(html).toContain(`<span class="t now"><b>now</b></span><span class="t"><b>3</b> min</span>`);
+  expect(html).not.toContain("stops");
 });
 
 test("bus groups at different corners name their stop", () => {
@@ -124,11 +116,6 @@ test("bus header names the cross street both corners share", () => {
   const same = renderAnswer({ ...bus, groups: [{ ...g, stop: "E 23 St/Park Av South" }, { ...g, dir: "N", stop: "E 23 St / Park Av South" }] });
   expect(same).toContain(`M15</span><span>E 23 St/Park Av South</span></div>`);
   expect(same).not.toContain(`class="where"`);
-});
-
-test("a bus under one stop away uses Bus Time's text, not 0 stops", () => {
-  const g = { ...bus.groups[0]!, arrivals: [{ dir: 1 as const, route: "M15", secs: 60, stopsAway: 0, proximity: "< 1 stop away" }] };
-  expect(renderAnswer({ ...bus, groups: [g] })).toContain("<small>&lt; 1 stop away</small>");
 });
 
 test("hint examples are links that work without JS", () => {

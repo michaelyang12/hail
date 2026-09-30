@@ -50,12 +50,10 @@ export function fmtMins(secs: number): string {
 }
 
 // "7 min" -> <b>7</b> min, so the number carries the weight and the unit recedes.
-function time(secs: number, sub = "", far = false): string {
+function time(secs: number): string {
   const t = fmtMins(secs);
-  const now = t === "now";
-  const body = far ? "<b>—</b>" : now ? "<b>now</b>" : `<b>${t.slice(0, -4)}</b> min`;
-  const cls = ["t", now && !far && "now", far && "far"].filter(Boolean).join(" ");
-  return `<span class="${cls}"><span>${body}</span>${sub ? `<small>${esc(sub)}</small>` : ""}</span>`;
+  if (t === "now") return `<span class="t now"><b>now</b></span>`;
+  return `<span class="t"><b>${t.slice(0, -4)}</b> min</span>`;
 }
 
 const stale = (ageSecs: number) => (ageSecs > STALE_SECS ? `<div class="stale">data ${Math.floor(ageSecs / 60)}m old</div>` : "");
@@ -74,15 +72,8 @@ const alsoLinks = (prefix: string, names: string[]) =>
     ? `<div class="also">also: ${names.map((n) => `<a href="/?q=${encodeURIComponent(`${prefix} ${n}`)}">${esc(n)}</a>`).join(", ")}</div>`
     : "";
 
-// Bus predictions are rougher than train ones, so distance rides along with the time.
-function busTime(b: BusArrival): string {
-  const at = b.proximity === "at stop";
-  // Stop counts read better than Bus Time's text, except near the stop ("< 1 stop away") or with no prediction ("4.1 miles away").
-  const counted = b.secs !== null && !!b.stopsAway && !at && b.proximity !== "approaching";
-  const away = counted ? `${b.stopsAway} stop${b.stopsAway === 1 ? "" : "s"}` : b.proximity;
-  if (b.secs === null) return time(0, away, true);
-  return time(at ? 0 : b.secs, away);
-}
+// Bus Time says "at stop" a little before the predicted time runs out.
+const busTime = (b: BusArrival) => time(b.proximity === "at stop" ? 0 : b.secs!);
 
 // Stop names are cross streets ("1 Av/E 14 St"). Opposite sides of one corner are
 // separate stops, often spelled differently ("E 23 St / Park Av South").

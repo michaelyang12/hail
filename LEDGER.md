@@ -10,7 +10,7 @@ _Last updated: 2026-09-29_
 - Fuzzy stop matching: aliases (street→st, avenue→av…), ordinals stripped, numbers must match exactly, prefix and edit-distance scoring. Close ties are listed as "also:" links.
 - All subway lines, including express variants (6X, 7X, FX), the three S shuttles, and SIR.
 - Next 2 arrivals per direction, one row per direction. Sub-30s shows "now". At terminals the "Last Stop" side is hidden unless asked for explicitly. An empty direction says either "no X trains running" (no trip of the line in that direction in the feed) or "no X trains coming here" (trips running but none due at this stop: skipped or just passed; the feed alone can't tell which).
-- Per-train route bullets appear only when routes differ within an answer (6 vs 6X express). Bus directions lead with the headsign; the compass arrow trails.
+- Per-train route bullets appear only when routes differ within an answer (6 vs 6X express). Bus directions lead with the headsign; the compass arrow trails. Buses show minutes only, like trains; buses with no prediction yet are left out. The bus header names the stop; when the two directions stop at different corners, it names their shared street and each direction lists its corner.
 - Stale-data notice when the feed is more than 2 min old. Friendly error when the MTA feed is down (3s timeout).
 - Per-feed 20s in-memory cache, filled only on request.
 - Hint shows the grammar (failing slot highlighted on errors) and tappable example queries, all plain GET links.

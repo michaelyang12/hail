@@ -39,7 +39,8 @@ export async function lookup(q: string, deps: BusDeps = live): Promise<BusAnswer
     label: h.dir.headsigns[0] ?? `Direction ${h.dir.id}`,
     stop: h.name,
     // A stop served in both directions (loops, terminals) lists both; keep the one asked for.
-    arrivals: feeds[i]!.arrivals.filter((a) => a.dir === null || a.dir === h.dir.id).slice(0, PER_DIR),
+    // Buses with no prediction yet (far out or on layover) have no time to show.
+    arrivals: feeds[i]!.arrivals.filter((a) => a.secs !== null && (a.dir === null || a.dir === h.dir.id)).slice(0, PER_DIR),
   }));
   return {
     kind: "bus",

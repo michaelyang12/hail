@@ -34,6 +34,12 @@ test("arrivals for the other direction at a shared stop are dropped", async () =
   expect(a.kind === "bus" && a.groups[0]!.arrivals).toEqual([]);
 });
 
+test("buses without a prediction are left out", async () => {
+  const far = { dir: 1 as const, route: "M15", secs: null, stopsAway: 31, proximity: "4.1 miles away" };
+  const a = await lookup("M15 south 23rd", { ...deps, arrivals: async () => ({ arrivals: [far], ageSecs: 0 }) });
+  expect(a.kind === "bus" && a.groups[0]!.arrivals).toEqual([]);
+});
+
 test("parse, match and feed errors", async () => {
   expect(await lookup("M999 23", deps)).toEqual({ kind: "error", slot: "line", message: 'route "M999" not found' });
   expect(await lookup("M15 qwerty zzz", deps)).toEqual({ kind: "error", slot: "stop", message: 'no M15 stop like "qwerty zzz"' });
