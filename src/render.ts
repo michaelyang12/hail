@@ -23,7 +23,7 @@ function time(secs: number, c?: Chip): Html {
   return html`<span class="t${m === null ? " now" : ""}">${c && chip(c)}${m === null ? html`<b>now</b>` : html`<b>${m}</b> min`}</span>`;
 }
 
-function board(b: Board, q: string): Html {
+function board(b: Board): Html {
   const rows = b.rows.map(
     (r) => html`<div class="row"><div class="label caps">${r.lead && html`<span class="arrow">${r.lead}</span>`}<span class="to">${r.label}</span>${
       r.trail && html`<span class="arrow">${r.trail}</span>`
@@ -33,14 +33,20 @@ function board(b: Board, q: string): Html {
   );
   const also = b.also.length > 0 && html`<div class="also">also: ${b.also.map((a, i) => html`${i ? ", " : ""}<a href="${queryHref(a.q)}">${a.text}</a>`)}</div>`;
   const stale = b.ageSecs > STALE_SECS && html`<div class="stale">data ${Math.floor(b.ageSecs / 60)}m old</div>`;
-  // A plain link to the same query, so it refreshes without JS too. Within the feed
-  // cache window the data is the same, but minutes are recounted from the current time.
-  const refresh = html`<a class="refresh" href="${queryHref(q)}" title="refresh" aria-label="refresh times">↻</a>`;
-  return html`<div class="stn">${chip(b.chip)}<span>${b.place}</span>${refresh}</div><div class="rows">${rows}</div>${also}${stale}`;
+  return html`<div class="stn">${chip(b.chip)}<span>${b.place}</span></div><div class="rows">${rows}</div>${also}${stale}`;
 }
 
-export function renderAnswer(a: Answer, q: string): string {
-  return (a.kind === "error" ? html`<div class="err">${a.message}</div>` : board(toBoard(a), q)).value;
+export function renderAnswer(a: Answer): string {
+  return (a.kind === "error" ? html`<div class="err">${a.message}</div>` : board(toBoard(a))).value;
+}
+
+// A plain link to the same query, so it refreshes without JS too. Within the feed
+// cache window the data is the same, but minutes are recounted from the current time.
+// Always present as #refresh so client.js can swap it, and so the top bar keeps its height;
+// an invisible placeholder unless there are times to refresh.
+function refresh(q: string, a: Answer | null): Html {
+  if (!a || a.kind === "error") return html`<span id="refresh" class="refresh" aria-hidden="true">↻</span>`;
+  return html`<a id="refresh" class="refresh" href="${queryHref(q)}" title="refresh" aria-label="refresh times">↻</a>`;
 }
 
 // Each example shows one feature of the grammar; all are plain links so they work without JS.
@@ -56,9 +62,13 @@ function hint(a: Answer | null): Html {
 }
 
 // What client.js receives for a ?partial=1 request.
-export type PartialResponse = { ans: string; hint: string };
+export type PartialResponse = { ans: string; hint: string; refresh: string };
 
-export const renderPartial = (q: string, a: Answer | null): PartialResponse => ({ ans: a ? renderAnswer(a, q) : "", hint: hint(a).value });
+export const renderPartial = (q: string, a: Answer | null): PartialResponse => ({
+  ans: a ? renderAnswer(a) : "",
+  hint: hint(a).value,
+  refresh: refresh(q, a).value,
+});
 
 export function renderPage(q: string, a: Answer | null): string {
   return html`<!doctype html>
@@ -73,10 +83,10 @@ export function renderPage(q: string, a: Answer | null): string {
 </head>
 <body>
 <form class="device" action="/" method="get" autocomplete="off">
-<div class="top caps"><span class="brand"><span class="led"></span>hail</span></div>
+<div class="top caps"><span class="brand"><span class="led"></span>hail</span>${refresh(q, a)}</div>
 <div class="screen">
 <label class="prompt"><b>&gt;</b><input name="q" value="${q}" placeholder="A downtown 14th st" aria-label="query" autocapitalize="off" autocorrect="off" spellcheck="false" enterkeyhint="go"${a ? "" : raw(" autofocus")}></label>
-<div id="ans" class="ans">${a && raw(renderAnswer(a, q))}</div>
+<div id="ans" class="ans">${a && raw(renderAnswer(a))}</div>
 </div>
 ${hint(a)}
 </form>

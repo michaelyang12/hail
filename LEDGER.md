@@ -13,7 +13,7 @@ _Last updated: 2026-09-29_
 - Per-train route bullets appear only when routes differ within an answer (6 vs 6X express). Bus directions lead with the headsign; the compass arrow trails. Buses show minutes only, like trains; buses with no prediction yet are left out. The bus header names the stop; when the two directions stop at different corners, it names their shared street and each direction lists its corner.
 - Stale-data notice when the feed is more than 2 min old. Friendly error when the MTA feed is down (3s timeout).
 - Per-feed 20s in-memory cache, filled only on request.
-- Each answer has a refresh link (↻) to the same query; it works without JS, and with JS it re-fetches in place and spins while loading.
+- A refresh link (↻) in the top bar re-runs the current query when there are times to refresh; it works without JS, and with JS it re-fetches in place and spins while loading.
 - Hint shows the grammar (failing slot highlighted on errors) and tappable example queries, all plain GET links.
 - Works without JS; with JS, submits and links use `?partial=1`, the old answer dims while loading, the card animates to its new height (off under reduced motion), and after an answer the examples are replaced by recent queries. Up/down-arrow history in localStorage (last 10).
 - The UI scales with the viewport (phone and desktop).

@@ -68,6 +68,7 @@
         form.classList.remove("busy");
         ans.innerHTML = data.ans;
         document.getElementById("hint").outerHTML = data.hint;
+        document.getElementById("refresh").outerHTML = data.refresh;
         showRecent();
       });
       window.history.replaceState(null, "", hrefFor(q));
