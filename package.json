@@ -6,7 +6,8 @@
     "dev": "bun --watch src/server.ts",
     "start": "bun src/server.ts",
     "test": "bun test",
-    "typecheck": "tsc"
+    "typecheck": "tsc",
+    "build:bus": "bun scripts/build-bus-data.ts"
   },
   "dependencies": {
     "gtfs-realtime-bindings": "^2.2.0"
