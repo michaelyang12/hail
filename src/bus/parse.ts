@@ -22,8 +22,10 @@ export function parseBus(q: string, known: (key: string) => boolean): BusParsed 
     raw += "+";
     rest = rest.slice(rest[0].toLowerCase() === "select" && rest[1]?.toLowerCase() === "bus" ? 2 : 1);
   }
-  const route = routeKey(raw);
+  let route = routeKey(raw);
   if (EXPRESS.test(route)) return { ok: false, slot: "line", message: "express buses aren't supported yet" };
+  // Some routes (M23, M34) run only as SBS, but riders still call them by the plain number.
+  if (!known(route) && known(route + "+")) route += "+";
   if (!known(route)) return { ok: false, slot: "line", message: `route "${raw}" not found` };
   if (rest.length === 0) return { ok: false, slot: "stop", message: "missing stop" };
 

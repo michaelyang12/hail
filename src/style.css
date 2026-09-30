@@ -103,6 +103,8 @@ body {
 /* The next train is the answer; the one after is context. A bullet may sit before it. */
 .t:first-child b, .bullet:first-child + .t b { font-size: 1.75rem; line-height: 1.1; opacity: 1; }
 .t small { font-size: 0.625rem; letter-spacing: .06em; color: var(--screen-mute); }
+/* Bus times carry a caption underneath, so both stay one size to keep the captions level. */
+.grp.bus .t b { font-size: 1.375rem; line-height: 1.1; }
 .t.now, .t.now b { color: var(--accent); opacity: 1; }
 .t.far b { color: var(--screen-mute); }
 .none { color: var(--screen-mute); font-size: 0.75rem; text-align: right; }

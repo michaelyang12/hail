@@ -67,7 +67,7 @@ function badge(r: BusRouteInfo): string {
   return `<span class="badge" style="--c:${hex(r.color, "#0039a6")};--t:${hex(r.text, "#fff")}">${esc(r.name)}</span>`;
 }
 
-const grp = (dir: string, times: string) => `<div class="grp"><div class="dir">${dir}</div><div class="times">${times}</div></div>`;
+const grp = (dir: string, times: string, cls = "grp") => `<div class="${cls}"><div class="dir">${dir}</div><div class="times">${times}</div></div>`;
 
 const alsoLinks = (prefix: string, names: string[]) =>
   names.length
@@ -93,7 +93,7 @@ function renderBus(a: BusAnswer): string {
       const times = g.arrivals.length ? g.arrivals.map(busTime).join("") : `<span class="none">no ${esc(a.route.name)} buses on the way</span>`;
       const where = shared ? "" : `<span class="where">${esc(g.stop)}</span>`;
       const arrow = g.dir ? `<span class="cmp">${ARROW[g.dir]}</span>` : "";
-      return grp(`<span class="to">${esc(g.label)}</span>${arrow}${where}`, times);
+      return grp(`<span class="to">${esc(g.label)}</span>${arrow}${where}`, times, "grp bus");
     })
     .join("");
   return `<div class="stn">${badge(a.route)}${shared ? `<span>${esc(stops[0]!)}</span>` : ""}</div>` + groups + alsoLinks(a.route.name, a.also) + stale(a.ageSecs);

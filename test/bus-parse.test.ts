@@ -32,6 +32,13 @@ test("one word after the route is always the stop", () => {
   expect(p.ok && p.variants).toEqual([{ dirWord: null, stopText: "23rd" }]);
 });
 
+test("plain number falls back to an SBS-only route", () => {
+  const p = parseBus("BX12 fordham", known);
+  expect(p.ok && p.route).toBe("BX12+");
+  const local = parseBus("M15 23", known);
+  expect(local.ok && local.route).toBe("M15");
+});
+
 test("errors carry the slot", () => {
   expect(parseBus("M999 23", known)).toEqual({ ok: false, slot: "line", message: 'route "M999" not found' });
   expect(parseBus("BM1 wall st", known)).toEqual({ ok: false, slot: "line", message: "express buses aren't supported yet" });
