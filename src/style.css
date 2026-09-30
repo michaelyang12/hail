@@ -101,6 +101,18 @@ body {
 /* Delayed so cached answers, which return almost instantly, swap without a flicker. */
 .busy .ans { opacity: .35; transition-delay: .08s; }
 .stn { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space); text-transform: uppercase; letter-spacing: var(--track-name); }
+/* Padding gives a finger-sized target; the negative margin keeps the glyph flush with the times. */
+.refresh {
+  margin: calc(-1 * var(--space-xs)) calc(-1 * var(--space-xs)) calc(-1 * var(--space-xs)) auto;
+  padding: var(--space-xs);
+  color: var(--screen-mute);
+  font-size: var(--fs-lg);
+  line-height: 1;
+  text-decoration: none;
+}
+.refresh:hover, .refresh:focus-visible { color: var(--screen-ink); outline: none; }
+.busy .refresh { color: var(--accent); animation: spin .8s linear infinite; }
+@keyframes spin { to { transform: rotate(1turn); } }
 
 /* One grid for all rows: the label column takes what's left, and each time column
    is as wide as its widest time across every row, so times line up at any width. */
@@ -170,3 +182,6 @@ body {
 .ex a:hover, .ex a:focus-visible { border-color: var(--ink); outline: none; }
 .hint.compact .gram, .hint.compact .note { display: none; }
 .hint.compact .ex { margin-top: 0; font-size: var(--fs-xs); }
+@media (prefers-reduced-motion: reduce) {
+  .busy .led, .busy .refresh { animation: none; }
+}

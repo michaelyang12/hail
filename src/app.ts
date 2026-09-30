@@ -25,6 +25,6 @@ export async function handle(req: Request, deps: Deps = defaults): Promise<Respo
   const q = queryOf(url);
   const a = q ? await (modeOf(q) === "bus" ? deps.bus : deps.subway)(q) : null;
 
-  if (url.searchParams.has("partial")) return Response.json(renderPartial(a), { headers });
+  if (url.searchParams.has("partial")) return Response.json(renderPartial(q, a), { headers });
   return new Response(renderPage(q, a), { headers: { ...headers, "Content-Type": "text/html; charset=utf-8" } });
 }

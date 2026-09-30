@@ -19,25 +19,30 @@ test("html escapes interpolations but not nested html or raw", () => {
 
 test("trains and buses render the same row markup", () => {
   const row = /<div class="row"><div class="label caps">.*?<\/div>(<span class="t( now)?">.*?<\/span>)+<\/div>/;
-  expect(renderAnswer(subway)).toMatch(row);
-  expect(renderAnswer(bus)).toMatch(row);
-  expect(renderAnswer(subway)).toContain(`<span class="t"><b>1</b> min</span><span class="t"><b>10</b> min</span>`);
-  expect(renderAnswer(bus)).toContain(`<span class="t now"><b>now</b></span><span class="t"><b>3</b> min</span>`);
+  expect(renderAnswer(subway, "q")).toMatch(row);
+  expect(renderAnswer(bus, "q")).toMatch(row);
+  expect(renderAnswer(subway, "q")).toContain(`<span class="t"><b>1</b> min</span><span class="t"><b>10</b> min</span>`);
+  expect(renderAnswer(bus, "q")).toContain(`<span class="t now"><b>now</b></span><span class="t"><b>3</b> min</span>`);
 });
 
 test("empty row spans the time columns", () => {
-  expect(renderAnswer({ ...subway, groups: [{ dir: "N", label: "Uptown", running: false, arrivals: [] }] })).toContain(
+  expect(renderAnswer({ ...subway, groups: [{ dir: "N", label: "Uptown", running: false, arrivals: [] }] }, "q")).toContain(
     `<span class="none">no A trains running right now</span>`,
   );
 });
 
+test("answers carry a refresh link to the same query; errors don't", () => {
+  expect(renderAnswer(subway, "A 14 st")).toContain(`<a class="refresh" href="/?q=A%2014%20st"`);
+  expect(renderAnswer({ kind: "error", slot: null, message: "x" }, "A 14 st")).not.toContain("refresh");
+});
+
 test("no also links renders nothing, not a count", () => {
-  expect(renderAnswer(subway)).not.toMatch(/<\/div>0/);
+  expect(renderAnswer(subway, "q")).not.toMatch(/<\/div>0/);
 });
 
 test("stale data is flagged", () => {
-  expect(renderAnswer(subway)).not.toContain("old");
-  expect(renderAnswer({ ...subway, ageSecs: 180 })).toContain("data 3m old");
+  expect(renderAnswer(subway, "q")).not.toContain("old");
+  expect(renderAnswer({ ...subway, ageSecs: 180 }, "q")).toContain("data 3m old");
 });
 
 test("user input is escaped", () => {
@@ -61,7 +66,7 @@ test("empty page has placeholder, full hint, example links that work without JS"
 });
 
 test("partial response carries the whole hint element, compact after an answer", () => {
-  expect(renderPartial(subway).hint).toStartWith(`<div id="hint" class="hint compact">`);
-  expect(renderPartial(null)).toMatchObject({ ans: "" });
-  expect(renderPartial(null).hint).toStartWith(`<div id="hint" class="hint">`);
+  expect(renderPartial("A 14 st", subway).hint).toStartWith(`<div id="hint" class="hint compact">`);
+  expect(renderPartial("", null)).toMatchObject({ ans: "" });
+  expect(renderPartial("", null).hint).toStartWith(`<div id="hint" class="hint">`);
 });
