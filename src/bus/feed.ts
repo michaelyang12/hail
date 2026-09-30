@@ -1,3 +1,7 @@
+import { ttlCache } from "../cache";
+import { FEED_TIMEOUT_MS, FEED_TTL_SECS } from "../config";
+import { FeedError } from "../errors";
+
 type Fetcher = (url: string, init?: RequestInit) => Promise<Response>;
 
 export type BusArrival = {
@@ -9,11 +13,7 @@ export type BusArrival = {
 };
 export type BusFeedResult = { arrivals: BusArrival[]; ageSecs: number };
 
-export class BusFeedError extends Error {}
-
 const BASE = "https://bustime.mta.info/api/siri/stop-monitoring.json";
-const CACHE_TTL = 20;
-const TIMEOUT_MS = 3000;
 
 // The parts of a SIRI v2 StopMonitoring response we read. v1 puts the distances
 // under MonitoredCall.Extensions.Distances instead, so both are accepted.
@@ -47,9 +47,9 @@ const one = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v) 
 export function extractBusArrivals(body: Siri, refs: Set<string>, now: number): BusFeedResult {
   const sd = body.Siri?.ServiceDelivery;
   const delivery = sd?.StopMonitoringDelivery?.[0];
-  if (!sd || !delivery) throw new BusFeedError("unexpected Bus Time response");
+  if (!sd || !delivery) throw new FeedError("unexpected Bus Time response");
   const err = delivery.ErrorCondition;
-  if (err) throw new BusFeedError(`Bus Time: ${err.Description ?? err.OtherError?.ErrorText ?? "error"}`);
+  if (err) throw new FeedError(`Bus Time: ${err.Description ?? err.OtherError?.ErrorText ?? "error"}`);
 
   const arrivals: BusArrival[] = [];
   for (const visit of delivery.MonitoredStopVisit ?? []) {
@@ -84,17 +84,17 @@ async function fetchStop(stopId: string, refs: string[], key: string, fetcher: F
   if (refs.length === 1) url.searchParams.set("LineRef", refs[0]!);
   let res: Response;
   try {
-    res = await fetcher(url.toString(), { signal: AbortSignal.timeout(TIMEOUT_MS) });
+    res = await fetcher(url.toString(), { signal: AbortSignal.timeout(FEED_TIMEOUT_MS) });
   } catch {
-    throw new BusFeedError("Bus Time unavailable, try again");
+    throw new FeedError("Bus Time unavailable, try again");
   }
   // Bus Time reports a bad key as JSON with an ErrorCondition, sometimes with a 4xx status.
   const body = (await res.json().catch(() => null)) as Siri | null;
   if (body?.Siri) return body;
-  throw new BusFeedError(res.ok ? "unexpected Bus Time response" : `Bus Time error ${res.status}`);
+  throw new FeedError(res.ok ? "unexpected Bus Time response" : `Bus Time error ${res.status}`);
 }
 
-const cache = new Map<string, { at: number; body: Promise<Siri> }>();
+const cache = ttlCache<Siri>(FEED_TTL_SECS);
 
 export async function getBusArrivals(
   stopId: string,
@@ -103,17 +103,9 @@ export async function getBusArrivals(
   fetcher: Fetcher = fetch,
   key = process.env.BUSTIME_API_KEY,
 ): Promise<BusFeedResult> {
-  if (!key) throw new BusFeedError("bus arrivals aren't set up (BUSTIME_API_KEY missing)");
-  const ck = `${stopId}|${refs.join(",")}`;
-  let hit = cache.get(ck);
-  if (!hit || now - hit.at >= CACHE_TTL) {
-    for (const [k, v] of cache) if (now - v.at >= CACHE_TTL) cache.delete(k);
-    const body = fetchStop(stopId, refs, key, fetcher);
-    hit = { at: now, body };
-    cache.set(ck, hit);
-    body.catch(() => cache.delete(ck));
-  }
-  return extractBusArrivals(await hit.body, new Set(refs), now);
+  if (!key) throw new FeedError("bus arrivals aren't set up (BUSTIME_API_KEY missing)");
+  const body = await cache.get(`${stopId}|${refs.join(",")}`, now, () => fetchStop(stopId, refs, key, fetcher));
+  return extractBusArrivals(body, new Set(refs), now);
 }
 
 export const clearBusCache = () => cache.clear();

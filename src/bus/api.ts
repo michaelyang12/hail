@@ -1,11 +1,11 @@
-import type { BusAnswer, BusGroup, ErrorAnswer } from "../render";
+import { BUS_ANSWER_TIMEOUT_MS, PER_DIR } from "../config";
+import { orFeedError } from "../errors";
+import { errorAnswer, noStop, type BusAnswer, type BusGroup, type ErrorAnswer } from "../model";
 import { busData, type BusData } from "./data";
-import { BusFeedError, getBusArrivals, type BusFeedResult } from "./feed";
+import { getBusArrivals, type BusFeedResult } from "./feed";
 import { findBusStop } from "./match";
 import { parseBus } from "./parse";
 
-export const TIMEOUT_MS = 3000;
-const PER_DIR = 2;
 
 type Impl = (q: string) => Promise<BusAnswer | ErrorAnswer>;
 export type BusDeps = {
@@ -17,22 +17,17 @@ const live: BusDeps = { data: busData, arrivals: (stopId, refs) => getBusArrival
 export async function lookup(q: string, deps: BusDeps = live): Promise<BusAnswer | ErrorAnswer> {
   const data = await deps.data();
   const p = parseBus(q, (k) => k in data.routes);
-  if (!p.ok) return { kind: "error", slot: p.slot, message: p.message };
+  if (!p.ok) return errorAnswer(p.slot, p.message);
   const route = data.routes[p.route]!;
 
   const m = findBusStop(data, route, p.variants);
   if (!m) {
     const text = p.variants[p.variants.length - 1]!.stopText;
-    return { kind: "error", slot: "stop", message: `no ${route.name} stop like "${text}"` };
+    return noStop(route.name, text);
   }
 
-  let feeds: BusFeedResult[];
-  try {
-    feeds = await Promise.all(m.hits.map((h) => deps.arrivals(h.stopId, route.refs)));
-  } catch (e) {
-    if (e instanceof BusFeedError) return { kind: "error", slot: null, message: e.message };
-    throw e;
-  }
+  const feeds = await orFeedError(Promise.all(m.hits.map((h) => deps.arrivals(h.stopId, route.refs))));
+  if ("kind" in feeds) return feeds;
 
   const groups: BusGroup[] = m.hits.map((h, i) => ({
     dir: h.dir.compass,
@@ -53,16 +48,16 @@ export async function lookup(q: string, deps: BusDeps = live): Promise<BusAnswer
 
 // Never throws and never takes longer than timeoutMs: every failure becomes an
 // error answer, so a broken bus module can't take subway queries down with it.
-export async function busAnswer(q: string, impl: Impl = (q) => lookup(q), timeoutMs = TIMEOUT_MS): Promise<BusAnswer | ErrorAnswer> {
+export async function busAnswer(q: string, impl: Impl = (q) => lookup(q), timeoutMs = BUS_ANSWER_TIMEOUT_MS): Promise<BusAnswer | ErrorAnswer> {
   let timer: ReturnType<typeof setTimeout> | undefined;
   const timeout = new Promise<ErrorAnswer>((resolve) => {
-    timer = setTimeout(() => resolve({ kind: "error", slot: null, message: "bus data timed out, try again" }), timeoutMs);
+    timer = setTimeout(() => resolve(errorAnswer(null, "bus data timed out, try again")), timeoutMs);
   });
   try {
     return await Promise.race([impl(q), timeout]);
   } catch (e) {
     console.error("bus:", e);
-    return { kind: "error", slot: null, message: "bus data unavailable, try again" };
+    return errorAnswer(null, "bus data unavailable, try again");
   } finally {
     clearTimeout(timer);
   }

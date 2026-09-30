@@ -1,29 +1,25 @@
+import { BOROUGHS, COMPASS_WORDS, type Dir } from "./directions";
+import { LINE_ALIASES } from "./lines";
+import type { Failure } from "./model";
 import { knownLines } from "./stations";
 
-export type Dir = "N" | "S";
 export type DirWord = { dir: Dir } | { borough: string };
 export type Variant = { dir: DirWord | null; stopText: string };
-export type Parsed =
-  | { ok: true; line: string; variants: Variant[] }
-  | { ok: false; slot: "line" | "stop"; message: string };
-
-const NORTH = new Set(["up", "uptown", "north", "n", "nb", "northbound"]);
-const SOUTH = new Set(["down", "downtown", "south", "s", "sb", "southbound"]);
-const BOROUGHS = new Set(["bronx", "brooklyn", "queens", "manhattan"]);
+export type Parsed = { ok: true; line: string; variants: Variant[] } | Failure;
 
 function dirWord(word: string, allowSingleLetter: boolean): DirWord | null {
   const w = word.toLowerCase();
   if (w.length === 1 && !allowSingleLetter) return null;
-  if (NORTH.has(w)) return { dir: "N" };
-  if (SOUTH.has(w)) return { dir: "S" };
+  const c = COMPASS_WORDS[w];
+  if (c === "N" || c === "S") return { dir: c };
   if (BOROUGHS.has(w)) return { borough: w };
   return null;
 }
 
 function resolveLine(raw: string): string | null {
   const t = raw.toUpperCase();
-  if (t === "SI") return "SIR";
-  if (knownLines.has(t)) return t;
+  const name = LINE_ALIASES[t] ?? t;
+  if (knownLines.has(name)) return name;
   if (t.endsWith("X") && knownLines.has(t.slice(0, -1))) return t.slice(0, -1);
   return null;
 }

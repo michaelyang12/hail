@@ -1,6 +1,6 @@
 import { answer } from "./answer";
 import { busAnswer } from "./bus/api";
-import type { Answer } from "./render";
+import type { Answer } from "./model";
 import { hintState, renderAnswer, renderPage } from "./render";
 import { modeOf } from "./route";
 

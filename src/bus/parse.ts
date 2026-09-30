@@ -1,7 +1,7 @@
+import type { Failure } from "../model";
+
 export type BusVariant = { dirWord: string | null; stopText: string };
-export type BusParsed =
-  | { ok: true; route: string; variants: BusVariant[] }
-  | { ok: false; slot: "line" | "stop"; message: string };
+export type BusParsed = { ok: true; route: string; variants: BusVariant[] } | Failure;
 
 const EXPRESS = /^(BM|BXM|QM|SIM|X)\d/;
 const SBS_WORDS = new Set(["sbs", "+", "select"]);

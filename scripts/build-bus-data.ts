@@ -9,7 +9,8 @@ import { mkdtempSync, existsSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { splitCsvLine } from "../src/csv";
-import type { BusData, BusDir, Compass } from "../src/bus/data";
+import type { BusData, BusDir } from "../src/bus/data";
+import { OPPOSITE, type Compass } from "../src/directions";
 import { routeKey } from "../src/bus/parse";
 
 const FEEDS = ["b", "bx", "m", "q", "si", "busco"];
@@ -83,7 +84,6 @@ function compassOf(a: [number, number], b: [number, number], grid: boolean): Com
   if (grid) [dx, dy] = [dx * Math.cos(GRID) - dy * Math.sin(GRID), dx * Math.sin(GRID) + dy * Math.cos(GRID)];
   return Math.abs(dy) >= Math.abs(dx) ? (dy >= 0 ? "N" : "S") : dx >= 0 ? "E" : "W";
 }
-const OPPOSITE: Record<Compass, Compass> = { N: "S", S: "N", E: "W", W: "E" };
 
 type RouteAcc = { name: string; refs: Set<string>; color: string; text: string };
 type DirAcc = { patterns: Map<string, number>; headsigns: Map<string, number> };

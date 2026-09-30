@@ -1,6 +1,7 @@
 import { expect, test } from "bun:test";
 import { answer } from "../src/answer";
-import { FeedError, type FeedResult } from "../src/feed";
+import { FeedError } from "../src/errors";
+import type { FeedResult } from "../src/feed";
 
 const fake = (r: FeedResult) => async () => r;
 const trains: FeedResult = {
@@ -16,7 +17,7 @@ const trains: FeedResult = {
 
 test("direction given: one group, two arrivals", async () => {
   const a = await answer("A downtown 14th st", { getArrivals: fake(trains) });
-  if (a.kind !== "ok") throw new Error(a.message);
+  if (a.kind !== "subway") throw new Error(a.message);
   expect(a.station.stopId).toBe("A31");
   expect(a.groups).toHaveLength(1);
   expect(a.groups[0]!.label).toBe("Downtown");
@@ -25,24 +26,24 @@ test("direction given: one group, two arrivals", async () => {
 
 test("no direction: both groups", async () => {
   const a = await answer("A 14th st", { getArrivals: fake(trains) });
-  expect(a.kind === "ok" && a.groups.map((g) => g.dir)).toEqual(["N", "S"]);
+  expect(a.kind === "subway" && a.groups.map((g) => g.dir)).toEqual(["N", "S"]);
 });
 
 test("groups carry whether trains run in that direction", async () => {
   const a = await answer("A 14th st", { getArrivals: fake({ ...trains, running: ["S"] }) });
-  expect(a.kind === "ok" && a.groups.map((g) => g.running)).toEqual([false, true]);
+  expect(a.kind === "subway" && a.groups.map((g) => g.running)).toEqual([false, true]);
 });
 
 test("borough word resolved against station labels", async () => {
   const a = await answer("A manhattan nostrand", { getArrivals: fake(trains) });
-  if (a.kind !== "ok") throw new Error(a.message);
+  if (a.kind !== "subway") throw new Error(a.message);
   expect(a.station.name).toBe("Nostrand Av");
   expect(a.groups.map((g) => g.dir)).toEqual(["N"]);
 });
 
 test("borough word that is really part of the stop name", async () => {
   const a = await answer("E queens plaza", { getArrivals: fake(trains) });
-  expect(a.kind === "ok" && a.station.stopId).toBe("G21");
+  expect(a.kind === "subway" && a.station.stopId).toBe("G21");
 });
 
 test("parse and match errors carry the slot", async () => {
@@ -62,6 +63,6 @@ test("feed failure becomes a friendly error", async () => {
 
 test("terminal hides the Last Stop side (terminating trains)", async () => {
   const a = await answer("7 flushing", { getArrivals: fake({ ageSecs: 0, running: ["N", "S"], arrivals: [{ dir: "N", route: "7", secs: 60 }, { dir: "S", route: "7", secs: 90 }] }) });
-  if (a.kind !== "ok") throw new Error(a.message);
+  if (a.kind !== "subway") throw new Error(a.message);
   expect(a.groups.map((g) => g.label)).toEqual(["Manhattan"]);
 });

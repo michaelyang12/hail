@@ -1,5 +1,9 @@
 import GtfsRealtimeBindings from "gtfs-realtime-bindings";
-import type { Dir } from "./parse";
+import { ttlCache } from "./cache";
+import { FEED_TIMEOUT_MS, FEED_TTL_SECS } from "./config";
+import type { Dir } from "./directions";
+import { FeedError } from "./errors";
+import { feedsFor, routeIdsFor } from "./lines";
 
 type FeedMessage = GtfsRealtimeBindings.transit_realtime.FeedMessage;
 type Fetcher = (url: string, init?: RequestInit) => Promise<Response>;
@@ -8,35 +12,7 @@ export type Arrival = { dir: Dir; route: string; secs: number };
 // running: directions with any trip of the line still ahead of it, whether or not it stops here.
 export type FeedResult = { arrivals: Arrival[]; running: Dir[]; ageSecs: number };
 
-export class FeedError extends Error {}
-
 const BASE = "https://api-endpoint.mta.info/Dataservice/mtagtfsfeeds/nyct%2F";
-const CACHE_TTL = 20;
-const TIMEOUT_MS = 3000;
-
-const FEED_BY_LINE: Record<string, string[]> = {
-  A: ["gtfs-ace"], C: ["gtfs-ace"], E: ["gtfs-ace"],
-  B: ["gtfs-bdfm"], D: ["gtfs-bdfm"], F: ["gtfs-bdfm"], M: ["gtfs-bdfm"],
-  G: ["gtfs-g"],
-  J: ["gtfs-jz"], Z: ["gtfs-jz"],
-  N: ["gtfs-nqrw"], Q: ["gtfs-nqrw"], R: ["gtfs-nqrw"], W: ["gtfs-nqrw"],
-  L: ["gtfs-l"],
-  "1": ["gtfs"], "2": ["gtfs"], "3": ["gtfs"], "4": ["gtfs"], "5": ["gtfs"], "6": ["gtfs"], "7": ["gtfs"],
-  SIR: ["gtfs-si"],
-  // The three shuttles (42 St, Franklin Av, Rockaway Park) live in different feeds.
-  S: ["gtfs", "gtfs-bdfm", "gtfs-ace"],
-};
-
-const ROUTE_IDS: Record<string, string[]> = {
-  S: ["GS", "FS", "H"],
-  SIR: ["SI", "SS"],
-  "6": ["6", "6X"],
-  "7": ["7", "7X"],
-  F: ["F", "FX"],
-};
-
-export const feedsFor = (line: string): string[] => FEED_BY_LINE[line] ?? [];
-export const routeIdsFor = (line: string): Set<string> => new Set(ROUTE_IDS[line] ?? [line]);
 
 export function decode(buf: Uint8Array): FeedMessage {
   return GtfsRealtimeBindings.transit_realtime.FeedMessage.decode(buf);
@@ -81,27 +57,17 @@ export function runningDirs(msg: FeedMessage, routeIds: Set<string>, now: number
   return out;
 }
 
-// Filled only while serving a request; entries just expire, nothing refreshes them.
-const cache = new Map<string, { at: number; msg: Promise<FeedMessage> }>();
+const cache = ttlCache<FeedMessage>(FEED_TTL_SECS);
 
 async function fetchFeed(path: string, fetcher: Fetcher): Promise<FeedMessage> {
   let res: Response;
   try {
-    res = await fetcher(BASE + path, { signal: AbortSignal.timeout(TIMEOUT_MS) });
+    res = await fetcher(BASE + path, { signal: AbortSignal.timeout(FEED_TIMEOUT_MS) });
   } catch {
     throw new FeedError("MTA feed unavailable, try again");
   }
   if (!res.ok) throw new FeedError("MTA feed unavailable, try again");
   return decode(new Uint8Array(await res.arrayBuffer()));
-}
-
-function getFeed(path: string, now: number, fetcher: Fetcher): Promise<FeedMessage> {
-  const hit = cache.get(path);
-  if (hit && now - hit.at < CACHE_TTL) return hit.msg;
-  const msg = fetchFeed(path, fetcher);
-  cache.set(path, { at: now, msg });
-  msg.catch(() => cache.delete(path));
-  return msg;
 }
 
 export async function getArrivals(
@@ -110,7 +76,7 @@ export async function getArrivals(
   now = Date.now() / 1000,
   fetcher: Fetcher = fetch,
 ): Promise<FeedResult> {
-  const msgs = await Promise.all(feedsFor(line).map((p) => getFeed(p, now, fetcher)));
+  const msgs = await Promise.all(feedsFor(line).map((p) => cache.get(p, now, () => fetchFeed(p, fetcher))));
   const routeIds = routeIdsFor(line);
   const arrivals = msgs.flatMap((m) => extractArrivals(m, routeIds, stopId, now)).sort((a, b) => a.secs - b.secs);
   const running = [...new Set(msgs.flatMap((m) => [...runningDirs(m, routeIds, now)]))];

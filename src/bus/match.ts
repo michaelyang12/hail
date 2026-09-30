@@ -1,6 +1,7 @@
 import { normalize } from "../normalize";
 import { MIN_SCORE, score, TIE } from "../score";
-import type { BusData, BusDir, BusRoute, Compass } from "./data";
+import { COMPASS_WORDS } from "../directions";
+import type { BusData, BusDir, BusRoute } from "./data";
 import type { BusVariant } from "./parse";
 
 // Bus stops are one-directional, so the same corner is usually two stops with
@@ -11,12 +12,6 @@ const DIR_TIE = 0.1;
 // so "M15 south 1st av 23" stays southbound (2 Av/E 22 St) instead of ignoring "south".
 const DIR_BONUS = 0.1;
 
-const COMPASS: Record<string, Compass> = {
-  n: "N", nb: "N", north: "N", northbound: "N", up: "N", uptown: "N",
-  s: "S", sb: "S", south: "S", southbound: "S", down: "S", downtown: "S",
-  e: "E", eb: "E", east: "E", eastbound: "E",
-  w: "W", wb: "W", west: "W", westbound: "W",
-};
 // Too common in headsigns and stop names to pick a direction on their own.
 const WEAK = new Set(["st", "av", "rd", "blvd", "via", "and", "the", "sq", "pl", "ctr", "center", "station", "terminal", "term"]);
 
@@ -26,7 +21,7 @@ export type BusMatch = { hits: StopHit[]; also: string[]; score: number };
 // A direction word resolves to one direction, or null if it isn't one.
 export function resolveDir(route: BusRoute, word: string): BusDir | null {
   const w = word.toLowerCase();
-  const c = COMPASS[w];
+  const c = COMPASS_WORDS[w];
   if (c) return route.dirs.find((d) => d.compass === c) ?? null;
   if (w.length < 3 || !/^[a-z]+$/.test(w) || WEAK.has(w)) return null;
   const hits = route.dirs.filter((d) => d.headsigns.some((h) => normalize(h).some((t) => t.startsWith(w))));

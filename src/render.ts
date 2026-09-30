@@ -1,18 +1,8 @@
-import type { Compass } from "./bus/data";
 import type { BusArrival } from "./bus/feed";
-import type { Arrival } from "./feed";
-import type { Dir } from "./parse";
-import type { Station } from "./stations";
-
-export type Group = { dir: Dir; label: string; arrivals: Arrival[]; running: boolean };
-export type BusGroup = { dir: Compass | null; label: string; stop: string; arrivals: BusArrival[] };
-export type BusRouteInfo = { key: string; name: string; color: string; text: string };
-export type SubwayAnswer = { kind: "ok"; line: string; station: Station; also: Station[]; groups: Group[]; ageSecs: number };
-export type BusAnswer = { kind: "bus"; route: BusRouteInfo; groups: BusGroup[]; also: string[]; ageSecs: number };
-export type ErrorAnswer = { kind: "error"; slot: "line" | "stop" | null; message: string };
-export type Answer = SubwayAnswer | BusAnswer | ErrorAnswer;
-
-const STALE_SECS = 120;
+import { STALE_SECS } from "./config";
+import { ARROW } from "./directions";
+import { DEFAULT_COLOR, displayRoute, LINES } from "./lines";
+import type { Answer, BusAnswer, BusRouteInfo, Slot } from "./model";
 
 const css = await Bun.file(new URL("./style.css", import.meta.url)).text();
 const js = await Bun.file(new URL("./client.js", import.meta.url)).text();
@@ -20,27 +10,10 @@ const js = await Bun.file(new URL("./client.js", import.meta.url)).text();
 const ESC: Record<string, string> = { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" };
 const esc = (s: string) => s.replace(/[&<>"']/g, (c) => ESC[c]!);
 
-const COLORS: Record<string, [bg: string, fg?: string]> = {
-  A: ["#0039a6"], C: ["#0039a6"], E: ["#0039a6"],
-  B: ["#ff6319"], D: ["#ff6319"], F: ["#ff6319"], M: ["#ff6319"],
-  G: ["#6cbe45"], J: ["#996633"], Z: ["#996633"], L: ["#a7a9ac"],
-  N: ["#fccc0a", "#111"], Q: ["#fccc0a", "#111"], R: ["#fccc0a", "#111"], W: ["#fccc0a", "#111"],
-  "1": ["#ee352e"], "2": ["#ee352e"], "3": ["#ee352e"],
-  "4": ["#00933c"], "5": ["#00933c"], "6": ["#00933c"],
-  "7": ["#b933ad"], S: ["#808183"], SIR: ["#0039a6"],
-};
-
-// Feed route ids (6X, GS, SI...) back to the names riders use.
-function displayRoute(route: string): { name: string; express: boolean } {
-  if (route === "GS" || route === "FS" || route === "H") return { name: "S", express: false };
-  if (route === "SI" || route === "SS") return { name: "SIR", express: false };
-  if (/^[0-9A-Z]X$/.test(route)) return { name: route[0]!, express: true };
-  return { name: route, express: false };
-}
-
 function bullet(route: string): string {
   const { name, express } = displayRoute(route);
-  const [bg, fg] = COLORS[name] ?? ["#808183"];
+  const line = LINES[name];
+  const [bg, fg] = [line?.color ?? DEFAULT_COLOR, line?.text];
   const cls = ["bullet", express && "x", name === "SIR" && "sir"].filter(Boolean).join(" ");
   return `<span class="${cls}" style="--c:${bg}${fg ? `;--t:${fg}` : ""}">${esc(name)}</span>`;
 }
@@ -58,7 +31,6 @@ function time(secs: number): string {
 
 const stale = (ageSecs: number) => (ageSecs > STALE_SECS ? `<div class="stale">data ${Math.floor(ageSecs / 60)}m old</div>` : "");
 
-const ARROW: Record<string, string> = { N: "↑", S: "↓", E: "→", W: "←" };
 const hex = (c: string, fallback: string) => (/^[0-9a-f]{6}$/i.test(c) ? `#${c}` : fallback);
 
 function badge(r: BusRouteInfo): string {
@@ -115,7 +87,7 @@ export function renderAnswer(a: Answer): string {
       const times = g.arrivals.length
         ? g.arrivals.map((t) => (mixed ? bullet(t.route) : "") + time(t.secs)).join("")
         : `<span class="none">${empty}</span>`;
-      return grp(`<span class="arr">${g.dir === "N" ? "↑" : "↓"}</span><span class="to">${esc(g.label)}</span>`, times);
+      return grp(`<span class="arr">${ARROW[g.dir]}</span><span class="to">${esc(g.label)}</span>`, times);
     })
     .join("");
   return (
@@ -127,7 +99,7 @@ export function renderAnswer(a: Answer): string {
 // Each example shows one feature of the grammar; all are plain links so they work without JS.
 const EXAMPLES = ["A downtown 14 st", "L bedford", "7 queens times sq", "M15 south ferry", "Q 86"];
 
-export function renderHint(slot: "line" | "stop" | null): string {
+export function renderHint(slot: Slot | null): string {
   const s = (name: string, on: boolean, extra = "") => `<span class="slot${on ? " on" : ""}${extra}">${name}</span>`;
   const links = EXAMPLES.map((q) => `<a href="/?q=${encodeURIComponent(q)}">${esc(q)}</a>`).join("");
   return (
@@ -138,7 +110,7 @@ export function renderHint(slot: "line" | "stop" | null): string {
 }
 
 export function hintState(a: Answer | null): { html: string; compact: boolean } {
-  return { html: renderHint(a?.kind === "error" ? a.slot : null), compact: a?.kind === "ok" || a?.kind === "bus" };
+  return { html: renderHint(a?.kind === "error" ? a.slot : null), compact: a?.kind === "subway" || a?.kind === "bus" };
 }
 
 export function renderPage(q: string, a: Answer | null): string {

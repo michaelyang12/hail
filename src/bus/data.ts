@@ -1,4 +1,5 @@
-export type Compass = "N" | "S" | "E" | "W";
+import type { Compass } from "../directions";
+
 export type BusDir = {
   id: 0 | 1;
   headsigns: string[]; // most common first

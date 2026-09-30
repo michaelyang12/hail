@@ -1,5 +1,6 @@
 import { beforeEach, expect, test } from "bun:test";
-import { BusFeedError, clearBusCache, extractBusArrivals, getBusArrivals } from "../src/bus/feed";
+import { clearBusCache, extractBusArrivals, getBusArrivals } from "../src/bus/feed";
+import { FeedError } from "../src/errors";
 
 // Built from the SIRI v2 StopMonitoring schema Bus Time documents, not recorded live.
 const fixture = await Bun.file(new URL("./fixtures/siri-m15.json", import.meta.url)).json();
@@ -43,9 +44,9 @@ test("reads SIRI v1 distances too", () => {
   expect(extractBusArrivals(v1, M15, now).arrivals).toEqual([{ dir: 0, route: "M15", secs: null, stopsAway: 1, proximity: "approaching" }]);
 });
 
-test("Bus Time error conditions become BusFeedError", () => {
+test("Bus Time error conditions become FeedError", () => {
   expect(() => extractBusArrivals(errFixture, M15, now)).toThrow("Bus Time: API key is not authorized.");
-  expect(() => extractBusArrivals({} as never, M15, now)).toThrow(BusFeedError);
+  expect(() => extractBusArrivals({} as never, M15, now)).toThrow(FeedError);
 });
 
 test("request parameters and 20s cache", async () => {
@@ -73,7 +74,7 @@ test("routes with two operators are filtered locally", async () => {
   expect(new URL(url).searchParams.has("LineRef")).toBe(false);
 });
 
-test("failures become BusFeedError and aren't cached", async () => {
+test("failures become FeedError and aren't cached", async () => {
   await expect(getBusArrivals("1", ["r"], now, async () => Response.json({}), "")).rejects.toThrow("BUSTIME_API_KEY");
   await expect(getBusArrivals("1", ["r"], now, async () => new Response("oops", { status: 503 }), "k")).rejects.toThrow("Bus Time error 503");
   await expect(getBusArrivals("1", ["r"], now, async () => { throw new TypeError("network"); }, "k")).rejects.toThrow("Bus Time unavailable");

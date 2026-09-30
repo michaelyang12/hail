@@ -1,10 +1,11 @@
 import { expect, test } from "bun:test";
-import { fmtMins, renderAnswer, renderPage, type Answer, type BusAnswer } from "../src/render";
+import type { Answer, BusAnswer } from "../src/model";
+import { fmtMins, renderAnswer, renderPage } from "../src/render";
 import { stations } from "../src/stations";
 
 const a31 = stations.find((s) => s.stopId === "A31")!;
 const ok: Answer = {
-  kind: "ok",
+  kind: "subway",
   line: "A",
   station: a31,
   also: [],

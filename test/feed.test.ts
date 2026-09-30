@@ -1,5 +1,6 @@
 import { expect, test } from "bun:test";
-import { decode, extractArrivals, feedsFor, getArrivals, routeIdsFor, runningDirs } from "../src/feed";
+import { decode, extractArrivals, getArrivals, runningDirs } from "../src/feed";
+import { displayRoute, feedsFor, routeIdsFor } from "../src/lines";
 
 const fixture = new Uint8Array(await Bun.file(new URL("./fixtures/gtfs-ace.pb", import.meta.url)).arrayBuffer());
 const msg = decode(fixture);
@@ -31,6 +32,14 @@ test("route and feed aliases", () => {
   expect(routeIdsFor("SIR")).toEqual(new Set(["SI", "SS"]));
   expect(feedsFor("A")).toEqual(["gtfs-ace"]);
   expect(feedsFor("S")).toHaveLength(3);
+  expect(routeIdsFor("A")).toEqual(new Set(["A"]));
+});
+
+test("feed route ids map back to rider-facing names", () => {
+  expect(displayRoute("6X")).toEqual({ name: "6", express: true });
+  expect(displayRoute("FS")).toEqual({ name: "S", express: false });
+  expect(displayRoute("SI")).toEqual({ name: "SIR", express: false });
+  expect(displayRoute("A")).toEqual({ name: "A", express: false });
 });
 
 test("getArrivals caches feeds and reports age", async () => {

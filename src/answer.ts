@@ -1,12 +1,13 @@
-import { FeedError, getArrivals as liveArrivals, type FeedResult } from "./feed";
+import { PER_DIR } from "./config";
+import type { Dir } from "./directions";
+import { orFeedError } from "./errors";
+import { getArrivals as liveArrivals, type FeedResult } from "./feed";
 import { findStop, type StopMatch } from "./match";
-import { parse, type Dir, type DirWord, type Variant } from "./parse";
-import type { ErrorAnswer, SubwayAnswer } from "./render";
+import { errorAnswer, noStop, type ErrorAnswer, type SubwayAnswer } from "./model";
+import { parse, type DirWord, type Variant } from "./parse";
 import type { Station } from "./stations";
 
 type Deps = { getArrivals: (line: string, stopId: string) => Promise<FeedResult> };
-
-const PER_DIR = 2;
 
 function directions(dir: DirWord | null, station: Station): Dir[] {
   if (!dir) return ["N", "S"];
@@ -23,7 +24,7 @@ function label(station: Station, dir: Dir): string {
 
 export async function answer(q: string, deps: Deps = { getArrivals: liveArrivals }): Promise<SubwayAnswer | ErrorAnswer> {
   const p = parse(q);
-  if (!p.ok) return { kind: "error", slot: p.slot, message: p.message };
+  if (!p.ok) return errorAnswer(p.slot, p.message);
 
   // Variants are ordered direction-first, so a tie keeps the direction reading.
   let best: { v: Variant; m: StopMatch } | null = null;
@@ -33,17 +34,12 @@ export async function answer(q: string, deps: Deps = { getArrivals: liveArrivals
   }
   if (!best) {
     const text = p.variants[p.variants.length - 1]!.stopText;
-    return { kind: "error", slot: "stop", message: `no ${p.line} stop like "${text}"` };
+    return noStop(p.line, text);
   }
 
   const { station, also } = best.m;
-  let feed: FeedResult;
-  try {
-    feed = await deps.getArrivals(p.line, station.stopId);
-  } catch (e) {
-    if (e instanceof FeedError) return { kind: "error", slot: null, message: e.message };
-    throw e;
-  }
+  const feed = await orFeedError(deps.getArrivals(p.line, station.stopId));
+  if ("kind" in feed) return feed;
 
   const dirs = directions(best.v.dir, station);
   const groups = dirs
@@ -56,5 +52,5 @@ export async function answer(q: string, deps: Deps = { getArrivals: liveArrivals
     // At a terminal the "Last Stop" side only lists trains ending their run; hide it unless asked for.
     .filter((g) => dirs.length === 1 || g.label !== "Last Stop");
 
-  return { kind: "ok", line: p.line, station, also, groups, ageSecs: feed.ageSecs };
+  return { kind: "subway", line: p.line, station, also, groups, ageSecs: feed.ageSecs };
 }
