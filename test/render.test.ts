@@ -114,6 +114,15 @@ test("bus groups at different corners name their stop", () => {
   expect(html).toContain(`href="/?q=M15%202%20Av%2FE%2025%20St"`);
 });
 
+test("bus header names the cross street both corners share", () => {
+  const g = bus.groups[0]!;
+  const html = renderAnswer({ ...bus, groups: [{ ...g, stop: "1 Av/E 14 St" }, { ...g, dir: "N", stop: "2 Av / E 14 St" }] });
+  expect(html).toContain(`M15</span><span>E 14 St</span></div>`);
+  expect(html).toContain(`<span class="where">1 Av/E 14 St</span>`);
+  expect(renderAnswer(bus)).toContain(`M15</span><span>2 Av/E 22 St</span></div>`);
+  expect(renderAnswer(bus)).not.toContain(`class="where"`);
+});
+
 test("hint examples are links that work without JS", () => {
   const html = renderPage("", null);
   expect(html).toContain(`<a href="/?q=A%20downtown%2014%20st">A downtown 14 st</a>`);

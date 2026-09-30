@@ -82,35 +82,34 @@ body {
 /* Delayed so cached answers, which return almost instantly, swap without a flicker. */
 .busy .ans { opacity: .35; transition-delay: .08s; }
 .stn { display: flex; flex-wrap: wrap; align-items: center; gap: 0.625rem; text-transform: uppercase; letter-spacing: .08em; }
-/* Wraps rather than squeezes, so a long label or empty message drops the times to their own line. */
-.grp { display: flex; flex-wrap: wrap; align-items: baseline; gap: 0.25rem 0.75rem; margin-top: 0.875rem; }
+/* Label column flexes and wraps; the times column never moves, so times line up down the card. */
+.grp { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: baseline; gap: 0.75rem; margin-top: 0.875rem; }
 .dir {
-  flex: 1 1 auto;
   font-size: 0.6875rem;
   letter-spacing: .14em;
   text-transform: uppercase;
   color: var(--screen-mute);
 }
 .dir .arr { margin-right: 0.5em; }
-.dir .cmp { margin-left: 0.5em; font-size: 0.625rem; opacity: .7; }
+.dir .cmp { margin-left: 0.5em; font-size: 0.625rem; }
 .dir .to { color: var(--screen-ink); }
 .dir .where { display: block; margin-top: 0.125rem; letter-spacing: .06em; }
-.times { display: flex; align-items: baseline; gap: 0.75rem; margin-left: auto; }
-.times .bullet { align-self: center; margin-right: -0.375rem; }
-/* One size and a fixed column width for every time, so times line up down the card. */
+/* Two fixed slots: a lone arrival or an empty message still sits in the same column. */
+.times { display: flex; align-items: baseline; gap: 0.625rem; min-width: 8.625rem; }
+.times .bullet { align-self: center; margin-right: -0.25rem; }
 .t {
   display: inline-flex;
   flex-direction: column;
   align-items: flex-end;
-  min-width: 4.75rem;
+  min-width: 4rem;
   color: var(--screen-mute);
-  font-size: 0.75rem;
+  font-size: 0.6875rem;
 }
-.t b { font-size: 1.5rem; line-height: 1.1; font-weight: 400; font-variant-numeric: tabular-nums; letter-spacing: -.01em; color: var(--screen-ink); }
+.t b { font-size: 1.25rem; line-height: 1.1; font-weight: 400; font-variant-numeric: tabular-nums; letter-spacing: -.01em; color: var(--screen-ink); }
 .t small { font-size: 0.625rem; letter-spacing: .06em; color: var(--screen-mute); }
 .t.now b { color: var(--accent); }
 .t.far b { color: var(--screen-mute); }
-.none { color: var(--screen-mute); font-size: 0.75rem; text-align: right; }
+.none { display: block; width: 8.625rem; color: var(--screen-mute); font-size: 0.75rem; text-align: right; }
 .bullet {
   display: inline-grid;
   place-items: center;

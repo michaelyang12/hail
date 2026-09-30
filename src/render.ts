@@ -84,6 +84,15 @@ function busTime(b: BusArrival): string {
   return time(at ? 0 : b.secs, away);
 }
 
+// Stop names are cross streets ("1 Av/E 14 St"). When the two directions stop at
+// different corners, the street they share names the place, like a station name.
+function place(stops: string[]): string {
+  if (stops.length === 1) return stops[0]!;
+  const parts = stops.map((s) => s.split("/").map((p) => p.trim()));
+  const common = parts[0]!.find((p) => parts.every((ps) => ps.some((q) => q.toLowerCase() === p.toLowerCase())));
+  return common ?? stops[0]!;
+}
+
 // Riders know a bus by where it's headed, so the headsign leads and the compass arrow trails.
 function renderBus(a: BusAnswer): string {
   const stops = [...new Set(a.groups.map((g) => g.stop))];
@@ -96,7 +105,7 @@ function renderBus(a: BusAnswer): string {
       return grp(`<span class="to">${esc(g.label)}</span>${arrow}${where}`, times);
     })
     .join("");
-  return `<div class="stn">${badge(a.route)}${shared ? `<span>${esc(stops[0]!)}</span>` : ""}</div>` + groups + alsoLinks(a.route.name, a.also) + stale(a.ageSecs);
+  return `<div class="stn">${badge(a.route)}<span>${esc(place(stops))}</span></div>` + groups + alsoLinks(a.route.name, a.also) + stale(a.ageSecs);
 }
 
 export function renderAnswer(a: Answer): string {
@@ -112,7 +121,7 @@ export function renderAnswer(a: Answer): string {
       const times = g.arrivals.length
         ? g.arrivals.map((t) => (mixed ? bullet(t.route) : "") + time(t.secs)).join("")
         : `<span class="none">${empty}</span>`;
-      return grp(`<span class="arr">${g.dir === "N" ? "↑" : "↓"}</span>${esc(g.label)}`, times);
+      return grp(`<span class="arr">${g.dir === "N" ? "↑" : "↓"}</span><span class="to">${esc(g.label)}</span>`, times);
     })
     .join("");
   return (
