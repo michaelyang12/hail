@@ -78,7 +78,8 @@ async function fetchStop(stopId: string, refs: string[], key: string, fetcher: F
   url.searchParams.set("key", key);
   url.searchParams.set("version", "2");
   url.searchParams.set("MonitoringRef", stopId);
-  url.searchParams.set("StopMonitoringDetailLevel", "minimum");
+  // "minimum" drops LineRef and DirectionRef, which we filter and group on.
+  url.searchParams.set("StopMonitoringDetailLevel", "normal");
   // A route run by both NYCT and MTA Bus has two refs; then filter locally instead.
   if (refs.length === 1) url.searchParams.set("LineRef", refs[0]!);
   let res: Response;

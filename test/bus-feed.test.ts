@@ -60,7 +60,7 @@ test("request parameters and 20s cache", async () => {
     key: "k",
     version: "2",
     MonitoringRef: "401739",
-    StopMonitoringDetailLevel: "minimum",
+    StopMonitoringDetailLevel: "normal",
     LineRef: "MTA NYCT_M15",
   });
   await getBusArrivals("401739", ["MTA NYCT_M15"], now + 20, fetcher, "k");

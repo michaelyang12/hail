@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test";
-import { decode, extractArrivals, feedsFor, getArrivals, routeIdsFor } from "../src/feed";
+import { decode, extractArrivals, feedsFor, getArrivals, routeIdsFor, runningDirs } from "../src/feed";
 
 const fixture = new Uint8Array(await Bun.file(new URL("./fixtures/gtfs-ace.pb", import.meta.url)).arrayBuffer());
 const msg = decode(fixture);
@@ -17,6 +17,12 @@ test("extracts A arrivals at 14 St in both directions, sorted", () => {
 test("does not match a stop whose id merely starts with ours", () => {
   // A3 must not pick up A31N/A31S etc.
   expect(extractArrivals(msg, routeIdsFor("A"), "A3", now)).toEqual([]);
+});
+
+test("running directions come from trips still under way", () => {
+  expect(runningDirs(msg, routeIdsFor("A"), now)).toEqual(new Set(["N", "S"]));
+  expect(runningDirs(msg, routeIdsFor("A"), now + 86400)).toEqual(new Set());
+  expect(runningDirs(msg, routeIdsFor("G"), now)).toEqual(new Set());
 });
 
 test("route and feed aliases", () => {

@@ -3,7 +3,7 @@ import { answer } from "../src/answer";
 import { handle, type Deps } from "../src/app";
 import type { FeedResult } from "../src/feed";
 
-const feed: FeedResult = { ageSecs: 5, arrivals: [{ dir: "S", route: "A", secs: 60 }, { dir: "N", route: "A", secs: 120 }] };
+const feed: FeedResult = { ageSecs: 5, running: ["N", "S"], arrivals: [{ dir: "S", route: "A", secs: 60 }, { dir: "N", route: "A", secs: 120 }] };
 const subway = (q: string) => answer(q, { getArrivals: async () => feed });
 const get = (deps: Deps, path: string) => handle(new Request(`http://x${path}`), deps);
 

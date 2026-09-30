@@ -5,6 +5,7 @@ import { FeedError, type FeedResult } from "../src/feed";
 const fake = (r: FeedResult) => async () => r;
 const trains: FeedResult = {
   ageSecs: 5,
+  running: ["N", "S"],
   arrivals: [
     { dir: "S", route: "A", secs: 60 },
     { dir: "N", route: "A", secs: 120 },
@@ -25,6 +26,11 @@ test("direction given: one group, two arrivals", async () => {
 test("no direction: both groups", async () => {
   const a = await answer("A 14th st", { getArrivals: fake(trains) });
   expect(a.kind === "ok" && a.groups.map((g) => g.dir)).toEqual(["N", "S"]);
+});
+
+test("groups carry whether trains run in that direction", async () => {
+  const a = await answer("A 14th st", { getArrivals: fake({ ...trains, running: ["S"] }) });
+  expect(a.kind === "ok" && a.groups.map((g) => g.running)).toEqual([false, true]);
 });
 
 test("borough word resolved against station labels", async () => {
@@ -55,7 +61,7 @@ test("feed failure becomes a friendly error", async () => {
 });
 
 test("terminal hides the Last Stop side (terminating trains)", async () => {
-  const a = await answer("7 flushing", { getArrivals: fake({ ageSecs: 0, arrivals: [{ dir: "N", route: "7", secs: 60 }, { dir: "S", route: "7", secs: 90 }] }) });
+  const a = await answer("7 flushing", { getArrivals: fake({ ageSecs: 0, running: ["N", "S"], arrivals: [{ dir: "N", route: "7", secs: 60 }, { dir: "S", route: "7", secs: 90 }] }) });
   if (a.kind !== "ok") throw new Error(a.message);
   expect(a.groups.map((g) => g.label)).toEqual(["Manhattan"]);
 });

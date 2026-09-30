@@ -77,16 +77,35 @@ body {
   padding: 0;
 }
 .prompt input::placeholder { color: var(--screen-mute); }
-.ans { margin-top: 0.875rem; padding-top: 0.75rem; border-top: 1px dashed #34332f; }
+.ans { margin-top: 0.875rem; padding-top: 0.75rem; border-top: 1px dashed #34332f; transition: opacity .15s; }
 .ans:empty { display: none; }
+/* Delayed so cached answers, which return almost instantly, swap without a flicker. */
+.busy .ans { opacity: .35; transition-delay: .08s; }
 .stn { display: flex; flex-wrap: wrap; align-items: center; gap: 0.625rem; text-transform: uppercase; letter-spacing: .08em; }
-.stn .routes { display: flex; gap: 0.25rem; }
-.grp { margin-top: 0.75rem; }
-.dir { font-size: 0.6875rem; letter-spacing: .14em; text-transform: uppercase; color: var(--screen-mute); }
-.row { display: flex; align-items: center; justify-content: space-between; margin-top: 0.25rem; }
-.eta { font-size: 1.75rem; font-variant-numeric: tabular-nums; letter-spacing: -.01em; }
-.eta.now { color: var(--accent); }
-.none { margin-top: 0.25rem; color: var(--screen-mute); }
+/* Wraps rather than squeezes, so a long label or empty message drops the times to their own line. */
+.grp { display: flex; flex-wrap: wrap; align-items: baseline; gap: 0.25rem 0.75rem; margin-top: 0.875rem; }
+.dir {
+  flex: 1 1 auto;
+  font-size: 0.6875rem;
+  letter-spacing: .14em;
+  text-transform: uppercase;
+  color: var(--screen-mute);
+}
+.dir .arr { margin-right: 0.5em; }
+.dir .cmp { margin-left: 0.5em; font-size: 0.625rem; opacity: .7; }
+.dir .to { color: var(--screen-ink); }
+.dir .where { display: block; margin-top: 0.125rem; letter-spacing: .06em; }
+.times { display: flex; align-items: baseline; gap: 1rem; margin-left: auto; }
+.times .bullet { align-self: center; margin-right: -0.625rem; }
+.t { display: inline-flex; flex-direction: column; align-items: flex-end; color: var(--screen-mute); font-size: 0.75rem; }
+.t b { font-weight: 400; font-variant-numeric: tabular-nums; letter-spacing: -.01em; }
+.t b { font-size: 1.125rem; color: var(--screen-ink); opacity: .7; }
+/* The next train is the answer; the one after is context. A bullet may sit before it. */
+.t:first-child b, .bullet:first-child + .t b { font-size: 1.75rem; line-height: 1.1; opacity: 1; }
+.t small { font-size: 0.625rem; letter-spacing: .06em; color: var(--screen-mute); }
+.t.now, .t.now b { color: var(--accent); opacity: 1; }
+.t.far b { color: var(--screen-mute); }
+.none { color: var(--screen-mute); font-size: 0.75rem; text-align: right; }
 .bullet {
   display: inline-grid;
   place-items: center;
@@ -100,6 +119,7 @@ body {
   font-family: Helvetica, Arial, sans-serif;
 }
 .bullet.x { border-radius: 0; clip-path: polygon(50% 0, 100% 50%, 50% 100%, 0 50%); width: 1.625rem; height: 1.625rem; }
+.bullet.sir { width: auto; padding: 0 0.375rem; border-radius: 0.6875rem; }
 .badge {
   display: inline-block;
   padding: 0 0.375rem;
@@ -112,25 +132,27 @@ body {
   font-family: Helvetica, Arial, sans-serif;
   letter-spacing: 0;
 }
-.away { color: var(--screen-mute); font-size: 0.75rem; letter-spacing: .06em; }
-.eta.far { color: var(--screen-mute); }
-.bullet.sir { width: auto; padding: 0 0.375rem; border-radius: 0.6875rem; }
-.also, .stale { margin-top: 0.75rem; font-size: 0.75rem; color: var(--screen-mute); }
+.also, .stale { margin-top: 0.875rem; font-size: 0.75rem; color: var(--screen-mute); }
 .also a { color: var(--screen-ink); }
 .stale { color: var(--accent); }
 .err { color: var(--accent); }
-.hint {
-  display: grid;
-  grid-template-columns: 4.5rem 1fr 1fr;
-  gap: 0.125rem 0.5rem;
-  padding: 0.75rem 0.25rem 0.125rem;
-  font-size: 0.6875rem;
-  letter-spacing: .1em;
-  text-transform: uppercase;
-  color: var(--mute);
+.hint { padding: 0.75rem 0.25rem 0.125rem; font-size: 0.6875rem; color: var(--mute); }
+.gram { display: flex; gap: 0.75rem; letter-spacing: .12em; text-transform: uppercase; }
+.gram .slot { color: var(--ink); font-weight: 700; }
+.gram .slot.opt { color: var(--mute); font-weight: 400; }
+.gram .slot.opt::after { content: "?"; }
+.gram .slot.on { color: var(--accent); text-decoration: underline; text-underline-offset: 0.1875rem; }
+.note { margin-top: 0.25rem; }
+.ex { display: flex; flex-wrap: wrap; align-items: baseline; gap: 0.375rem; margin-top: 0.625rem; }
+.ex .lbl { letter-spacing: .12em; text-transform: uppercase; margin-right: 0.125rem; }
+.ex a {
+  color: var(--ink);
+  text-decoration: none;
+  padding: 0.125rem 0.5rem;
+  border: 1px solid var(--rule);
+  border-radius: 99px;
+  white-space: nowrap;
 }
-.hint .slot { color: var(--ink); font-weight: 700; }
-.hint .slot.on { color: var(--accent); text-decoration: underline; text-underline-offset: 0.1875rem; }
-.hint .ex { text-transform: none; letter-spacing: 0; }
-.hint.compact { font-size: 0.625rem; opacity: .75; }
-.hint.compact .more { display: none; }
+.ex a:hover, .ex a:focus-visible { border-color: var(--ink); outline: none; }
+.hint.compact .gram, .hint.compact .note { display: none; }
+.hint.compact .ex { margin-top: 0; font-size: 0.625rem; }

@@ -4,7 +4,7 @@ import type { Arrival } from "./feed";
 import type { Dir } from "./parse";
 import type { Station } from "./stations";
 
-export type Group = { dir: Dir; label: string; arrivals: Arrival[] };
+export type Group = { dir: Dir; label: string; arrivals: Arrival[]; running: boolean };
 export type BusGroup = { dir: Compass | null; label: string; stop: string; arrivals: BusArrival[] };
 export type BusRouteInfo = { key: string; name: string; color: string; text: string };
 export type SubwayAnswer = { kind: "ok"; line: string; station: Station; also: Station[]; groups: Group[]; ageSecs: number };
@@ -49,6 +49,15 @@ export function fmtMins(secs: number): string {
   return secs < 30 ? "now" : `${Math.max(1, Math.floor(secs / 60))} min`;
 }
 
+// "7 min" -> <b>7</b> min, so the number carries the weight and the unit recedes.
+function time(secs: number, sub = "", far = false): string {
+  const t = fmtMins(secs);
+  const now = t === "now";
+  const body = far ? "<b>—</b>" : now ? "<b>now</b>" : `<b>${t.slice(0, -4)}</b> min`;
+  const cls = ["t", now && !far && "now", far && "far"].filter(Boolean).join(" ");
+  return `<span class="${cls}"><span>${body}</span>${sub ? `<small>${esc(sub)}</small>` : ""}</span>`;
+}
+
 const stale = (ageSecs: number) => (ageSecs > STALE_SECS ? `<div class="stale">data ${Math.floor(ageSecs / 60)}m old</div>` : "");
 
 const ARROW: Record<string, string> = { N: "↑", S: "↓", E: "→", W: "←" };
@@ -58,65 +67,70 @@ function badge(r: BusRouteInfo): string {
   return `<span class="badge" style="--c:${hex(r.color, "#0039a6")};--t:${hex(r.text, "#fff")}">${esc(r.name)}</span>`;
 }
 
+const grp = (dir: string, times: string) => `<div class="grp"><div class="dir">${dir}</div><div class="times">${times}</div></div>`;
+
+const alsoLinks = (prefix: string, names: string[]) =>
+  names.length
+    ? `<div class="also">also: ${names.map((n) => `<a href="/?q=${encodeURIComponent(`${prefix} ${n}`)}">${esc(n)}</a>`).join(", ")}</div>`
+    : "";
+
 // Bus predictions are rougher than train ones, so distance rides along with the time.
-function busRow(b: BusArrival): string {
+function busTime(b: BusArrival): string {
   const at = b.proximity === "at stop";
   // Stop counts read better than Bus Time's text, except near the stop or with no prediction ("4.1 miles away").
   const counted = b.secs !== null && b.stopsAway !== null && !at && b.proximity !== "approaching";
   const away = counted ? `${b.stopsAway} stop${b.stopsAway === 1 ? "" : "s"}` : b.proximity;
-  const eta = b.secs === null ? `<span class="eta far">—</span>` : `<span class="eta${at || b.secs < 30 ? " now" : ""}">${at ? "now" : fmtMins(b.secs)}</span>`;
-  return `<div class="row"><span class="away">${esc(away)}</span>${eta}</div>`;
+  if (b.secs === null) return time(0, away, true);
+  return time(at ? 0 : b.secs, away);
 }
 
+// Riders know a bus by where it's headed, so the headsign leads and the compass arrow trails.
 function renderBus(a: BusAnswer): string {
   const stops = [...new Set(a.groups.map((g) => g.stop))];
   const shared = stops.length === 1;
   const groups = a.groups
     .map((g) => {
-      const rows = g.arrivals.length ? g.arrivals.map(busRow).join("") : `<div class="none">no ${esc(a.route.name)} buses on the way</div>`;
-      const where = shared ? "" : ` · ${esc(g.stop)}`;
-      return `<div class="grp"><div class="dir">${g.dir ? ARROW[g.dir] : "•"} ${esc(g.label)}${where}</div>${rows}</div>`;
+      const times = g.arrivals.length ? g.arrivals.map(busTime).join("") : `<span class="none">no ${esc(a.route.name)} buses on the way</span>`;
+      const where = shared ? "" : `<span class="where">${esc(g.stop)}</span>`;
+      const arrow = g.dir ? `<span class="cmp">${ARROW[g.dir]}</span>` : "";
+      return grp(`<span class="to">${esc(g.label)}</span>${arrow}${where}`, times);
     })
     .join("");
-  const also = a.also.length
-    ? `<div class="also">also: ${a.also
-        .map((n) => `<a href="/?q=${encodeURIComponent(`${a.route.name} ${n}`)}">${esc(n)}</a>`)
-        .join(", ")}</div>`
-    : "";
-  return `<div class="stn">${badge(a.route)}${shared ? `<span>${esc(stops[0]!)}</span>` : ""}</div>` + groups + also + stale(a.ageSecs);
+  return `<div class="stn">${badge(a.route)}${shared ? `<span>${esc(stops[0]!)}</span>` : ""}</div>` + groups + alsoLinks(a.route.name, a.also) + stale(a.ageSecs);
 }
 
 export function renderAnswer(a: Answer): string {
   if (a.kind === "error") return `<div class="err">${esc(a.message)}</div>`;
   if (a.kind === "bus") return renderBus(a);
+  // Per-train bullets only earn their space when trains differ (6 vs 6X express).
+  const mixed = new Set(a.groups.flatMap((g) => g.arrivals.map((t) => t.route))).size > 1;
   const groups = a.groups
     .map((g) => {
-      const rows = g.arrivals.length
-        ? g.arrivals
-            .map((t) => `<div class="row">${bullet(t.route)}<span class="eta${t.secs < 30 ? " now" : ""}">${fmtMins(t.secs)}</span></div>`)
-            .join("")
-        : `<div class="none">no ${esc(a.line)} trains scheduled</div>`;
-      return `<div class="grp"><div class="dir">${g.dir === "N" ? "↑" : "↓"} ${esc(g.label)}</div>${rows}</div>`;
+      // The feed only covers trips already under way, so "running" can't tell a skipped
+      // stop from a train that just passed; the wording stays true for both.
+      const empty = g.running ? `no ${esc(a.line)} trains coming here right now` : `no ${esc(a.line)} trains running right now`;
+      const times = g.arrivals.length
+        ? g.arrivals.map((t) => (mixed ? bullet(t.route) : "") + time(t.secs)).join("")
+        : `<span class="none">${empty}</span>`;
+      return grp(`<span class="arr">${g.dir === "N" ? "↑" : "↓"}</span>${esc(g.label)}`, times);
     })
     .join("");
-  const also = a.also.length
-    ? `<div class="also">also: ${a.also
-        .map((s) => `<a href="/?q=${encodeURIComponent(`${a.line} ${s.name}`)}">${esc(s.name)}</a>`)
-        .join(", ")}</div>`
-    : "";
   return (
-    `<div class="stn"><span>${esc(a.station.name)}</span><span class="routes">${a.station.routes.map(bullet).join("")}</span></div>` +
-    groups + also + stale(a.ageSecs)
+    `<div class="stn">${bullet(a.line)}<span>${esc(a.station.name)}</span></div>` +
+    groups + alsoLinks(a.line, a.also.map((s) => s.name)) + stale(a.ageSecs)
   );
 }
 
+// Each example shows one feature of the grammar; all are plain links so they work without JS.
+const EXAMPLES = ["A downtown 14 st", "L bedford", "7 queens times sq", "M15 south ferry", "Q 86"];
+
 export function renderHint(slot: "line" | "stop" | null): string {
   const s = (name: string, on: boolean, extra = "") => `<span class="slot${on ? " on" : ""}${extra}">${name}</span>`;
+  const links = EXAMPLES.map((q) => `<a href="/?q=${encodeURIComponent(q)}">${esc(q)}</a>`).join("");
   return (
-    s("LINE", slot === "line") + s("[DIR]", false, " opt") + s("STOP", slot === "stop") +
-    `<span class="ex">A</span><span class="ex">up / down</span><span class="ex">14th st</span>` +
-    `<span class="ex">M15</span><span class="ex">south / ferry</span><span class="ex">1st av 23</span>` +
-    `<span class="ex more"></span><span class="ex more">n / s · bronx / brooklyn / queens / manhattan</span><span class="ex more"></span>`
+    `<div class="gram">${s("line", slot === "line")}${s("direction", false, " opt")}${s("stop", slot === "stop")}</div>` +
+    `<div class="note">direction is optional: up / down, n / s, a borough, or where the bus is headed</div>` +
+    `<div class="ex"><span class="lbl">try</span>${links}</div>`
   );
 }
 
@@ -138,7 +152,7 @@ export function renderPage(q: string, a: Answer | null): string {
 </head>
 <body>
 <form class="device" action="/" method="get" autocomplete="off">
-<div class="top"><span class="brand"><span class="led"></span>hail</span><span>nyc subway · bus</span></div>
+<div class="top"><span class="brand"><span class="led"></span>hail</span></div>
 <div class="screen">
 <label class="prompt"><b>&gt;</b><input name="q" value="${esc(q)}" placeholder="A downtown 14th st" aria-label="query" autocapitalize="off" autocorrect="off" spellcheck="false" enterkeyhint="go"${a ? "" : " autofocus"}></label>
 <div id="ans" class="ans">${a ? renderAnswer(a) : ""}</div>

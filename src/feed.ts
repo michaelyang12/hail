@@ -5,7 +5,8 @@ type FeedMessage = GtfsRealtimeBindings.transit_realtime.FeedMessage;
 type Fetcher = (url: string, init?: RequestInit) => Promise<Response>;
 
 export type Arrival = { dir: Dir; route: string; secs: number };
-export type FeedResult = { arrivals: Arrival[]; ageSecs: number };
+// running: directions with any trip of the line still ahead of it, whether or not it stops here.
+export type FeedResult = { arrivals: Arrival[]; running: Dir[]; ageSecs: number };
 
 export class FeedError extends Error {}
 
@@ -60,6 +61,26 @@ export function extractArrivals(msg: FeedMessage, routeIds: Set<string>, stopId:
   return out.sort((a, b) => a.secs - b.secs);
 }
 
+// A trip's direction is the N/S suffix on its stop ids. Past stops drop out of the
+// feed, so a trip counts only while it still has a stop ahead.
+export function runningDirs(msg: FeedMessage, routeIds: Set<string>, now: number): Set<Dir> {
+  const out = new Set<Dir>();
+  for (const e of msg.entity) {
+    const tu = e.tripUpdate;
+    const route = tu?.trip.routeId;
+    if (!tu || !route || !routeIds.has(route)) continue;
+    for (const st of tu.stopTimeUpdate ?? []) {
+      const dir = (st.stopId ?? "").slice(-1);
+      const time = Number(st.arrival?.time ?? st.departure?.time ?? 0);
+      if ((dir === "N" || dir === "S") && time >= now - 30) {
+        out.add(dir);
+        break;
+      }
+    }
+  }
+  return out;
+}
+
 // Filled only while serving a request; entries just expire, nothing refreshes them.
 const cache = new Map<string, { at: number; msg: Promise<FeedMessage> }>();
 
@@ -92,6 +113,7 @@ export async function getArrivals(
   const msgs = await Promise.all(feedsFor(line).map((p) => getFeed(p, now, fetcher)));
   const routeIds = routeIdsFor(line);
   const arrivals = msgs.flatMap((m) => extractArrivals(m, routeIds, stopId, now)).sort((a, b) => a.secs - b.secs);
+  const running = [...new Set(msgs.flatMap((m) => [...runningDirs(m, routeIds, now)]))];
   const oldest = Math.min(...msgs.map((m) => Number(m.header.timestamp)));
-  return { arrivals, ageSecs: Math.max(0, Math.round(now - oldest)) };
+  return { arrivals, running, ageSecs: Math.max(0, Math.round(now - oldest)) };
 }
