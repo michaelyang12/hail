@@ -1,7 +1,7 @@
 import { FeedError, getArrivals as liveArrivals, type FeedResult } from "./feed";
 import { findStop, type StopMatch } from "./match";
 import { parse, type Dir, type DirWord, type Variant } from "./parse";
-import type { Answer } from "./render";
+import type { ErrorAnswer, SubwayAnswer } from "./render";
 import type { Station } from "./stations";
 
 type Deps = { getArrivals: (line: string, stopId: string) => Promise<FeedResult> };
@@ -21,7 +21,7 @@ function label(station: Station, dir: Dir): string {
   return l && l !== "NaN" ? l : dir === "N" ? "Northbound" : "Southbound";
 }
 
-export async function answer(q: string, deps: Deps = { getArrivals: liveArrivals }): Promise<Answer> {
+export async function answer(q: string, deps: Deps = { getArrivals: liveArrivals }): Promise<SubwayAnswer | ErrorAnswer> {
   const p = parse(q);
   if (!p.ok) return { kind: "error", slot: p.slot, message: p.message };
 

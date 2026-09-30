@@ -1,11 +1,16 @@
+import type { Compass } from "./bus/data";
+import type { BusArrival } from "./bus/feed";
 import type { Arrival } from "./feed";
 import type { Dir } from "./parse";
 import type { Station } from "./stations";
 
 export type Group = { dir: Dir; label: string; arrivals: Arrival[] };
-export type Answer =
-  | { kind: "ok"; line: string; station: Station; also: Station[]; groups: Group[]; ageSecs: number }
-  | { kind: "error"; slot: "line" | "stop" | null; message: string };
+export type BusGroup = { dir: Compass | null; label: string; stop: string; arrivals: BusArrival[] };
+export type BusRouteInfo = { key: string; name: string; color: string; text: string };
+export type SubwayAnswer = { kind: "ok"; line: string; station: Station; also: Station[]; groups: Group[]; ageSecs: number };
+export type BusAnswer = { kind: "bus"; route: BusRouteInfo; groups: BusGroup[]; also: string[]; ageSecs: number };
+export type ErrorAnswer = { kind: "error"; slot: "line" | "stop" | null; message: string };
+export type Answer = SubwayAnswer | BusAnswer | ErrorAnswer;
 
 const STALE_SECS = 120;
 
@@ -44,8 +49,15 @@ export function fmtMins(secs: number): string {
   return secs < 30 ? "now" : `${Math.max(1, Math.floor(secs / 60))} min`;
 }
 
+function renderBus(a: BusAnswer): string {
+  return a.groups
+    .map((g) => `<div class="grp"><div class="dir">${esc(g.label)} · ${esc(g.stop)}</div>${g.arrivals.map((b) => `<div class="row">${esc(b.route)} ${b.secs === null ? esc(b.proximity) : fmtMins(b.secs)}</div>`).join("")}</div>`)
+    .join("");
+}
+
 export function renderAnswer(a: Answer): string {
   if (a.kind === "error") return `<div class="err">${esc(a.message)}</div>`;
+  if (a.kind === "bus") return renderBus(a);
   const groups = a.groups
     .map((g) => {
       const rows = g.arrivals.length
@@ -78,7 +90,7 @@ export function renderHint(slot: "line" | "stop" | null): string {
 }
 
 export function hintState(a: Answer | null): { html: string; compact: boolean } {
-  return { html: renderHint(a?.kind === "error" ? a.slot : null), compact: a?.kind === "ok" };
+  return { html: renderHint(a?.kind === "error" ? a.slot : null), compact: a?.kind === "ok" || a?.kind === "bus" };
 }
 
 export function renderPage(q: string, a: Answer | null): string {

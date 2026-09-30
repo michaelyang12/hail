@@ -7,8 +7,11 @@ const quiet = () => {
   return () => (console.error = orig);
 };
 
-test("stub returns an error answer", async () => {
-  expect((await busAnswer("M15 23rd")).kind).toBe("error");
+test("missing API key is an error answer, not a crash", async () => {
+  const key = process.env.BUSTIME_API_KEY;
+  delete process.env.BUSTIME_API_KEY;
+  expect(await busAnswer("M15 23rd")).toEqual({ kind: "error", slot: null, message: "bus arrivals aren't set up (BUSTIME_API_KEY missing)" });
+  process.env.BUSTIME_API_KEY = key;
 });
 
 test("a throwing implementation becomes an error answer", async () => {
