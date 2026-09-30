@@ -24,11 +24,17 @@ bun run typecheck
 
 `PORT` and `HOST` env vars override the defaults (`3000`, `127.0.0.1`).
 
+Bus arrivals need an MTA Bus Time key (free, from https://register.developer.obanyc.com/). Put it in `.env` at the repo root, which Bun loads automatically:
+
+```sh
+echo 'BUSTIME_API_KEY=your-key' > .env
+```
+
 ## Deploy with Docker
 
 ```sh
 docker build -t hail .
-docker run -d --name hail --restart unless-stopped -p 127.0.0.1:3000:3000 hail
+docker run -d --name hail --restart unless-stopped -p 127.0.0.1:3000:3000 --env-file .env hail
 ```
 
 Publishing on `127.0.0.1` keeps it reachable only from the host (and the tunnel). Then add the tunnel rule below.

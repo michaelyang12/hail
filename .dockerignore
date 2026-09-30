@@ -9,3 +9,4 @@ deploy
 .playwright-mcp
 *.md
 tsconfig.json
+.env

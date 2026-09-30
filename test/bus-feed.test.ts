@@ -74,7 +74,7 @@ test("routes with two operators are filtered locally", async () => {
 });
 
 test("failures become BusFeedError and aren't cached", async () => {
-  await expect(getBusArrivals("1", ["r"], now, async () => Response.json({}), undefined)).rejects.toThrow("BUSTIME_API_KEY");
+  await expect(getBusArrivals("1", ["r"], now, async () => Response.json({}), "")).rejects.toThrow("BUSTIME_API_KEY");
   await expect(getBusArrivals("1", ["r"], now, async () => new Response("oops", { status: 503 }), "k")).rejects.toThrow("Bus Time error 503");
   await expect(getBusArrivals("1", ["r"], now, async () => { throw new TypeError("network"); }, "k")).rejects.toThrow("Bus Time unavailable");
   await expect(getBusArrivals("1", ["r"], now, async () => Response.json(errFixture, { status: 403 }), "k")).rejects.toThrow("not authorized");
