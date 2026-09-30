@@ -1,7 +1,7 @@
 import { answer } from "./answer";
 import { busAnswer } from "./bus/api";
 import type { Answer } from "./model";
-import { hintState, renderAnswer, renderPage } from "./render";
+import { renderPage, renderPartial } from "./render";
 import { modeOf } from "./route";
 
 export type Deps = { subway: (q: string) => Promise<Answer>; bus: (q: string) => Promise<Answer> };
@@ -25,9 +25,6 @@ export async function handle(req: Request, deps: Deps = defaults): Promise<Respo
   const q = queryOf(url);
   const a = q ? await (modeOf(q) === "bus" ? deps.bus : deps.subway)(q) : null;
 
-  if (url.searchParams.has("partial")) {
-    const hint = hintState(a);
-    return Response.json({ ans: a ? renderAnswer(a) : "", hint: hint.html, compact: hint.compact }, { headers });
-  }
+  if (url.searchParams.has("partial")) return Response.json(renderPartial(a), { headers });
   return new Response(renderPage(q, a), { headers: { ...headers, "Content-Type": "text/html; charset=utf-8" } });
 }

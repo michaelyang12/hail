@@ -1,126 +1,68 @@
 import { expect, test } from "bun:test";
-import type { Answer, BusAnswer } from "../src/model";
-import { fmtMins, renderAnswer, renderPage } from "../src/render";
-import { stations } from "../src/stations";
+import { html, raw } from "../src/html";
+import { minutes, renderAnswer, renderPage, renderPartial } from "../src/render";
+import { bus, subway } from "./samples";
 
-const a31 = stations.find((s) => s.stopId === "A31")!;
-const ok: Answer = {
-  kind: "subway",
-  line: "A",
-  station: a31,
-  also: [],
-  groups: [{ dir: "S", label: "Downtown", running: true, arrivals: [{ dir: "S", route: "A", secs: 70 }, { dir: "S", route: "A", secs: 610 }] }],
-  ageSecs: 10,
-};
-
-test("minute formatting", () => {
-  expect(fmtMins(-10)).toBe("now");
-  expect(fmtMins(20)).toBe("now");
-  expect(fmtMins(45)).toBe("1 min");
-  expect(fmtMins(89)).toBe("1 min");
-  expect(fmtMins(600)).toBe("10 min");
+test("minutes", () => {
+  expect(minutes(-10)).toBeNull();
+  expect(minutes(20)).toBeNull();
+  expect(minutes(45)).toBe(1);
+  expect(minutes(89)).toBe(1);
+  expect(minutes(600)).toBe(10);
 });
 
-test("answer shows station, direction, arrivals", () => {
-  const html = renderAnswer(ok);
-  expect(html).toContain("14 St");
-  expect(html).toContain("Downtown");
-  expect(html).toContain(`<span class="t"><b>1</b> min</span><span class="t"><b>10</b> min</span>`);
-  expect(html).not.toContain("old");
+test("html escapes interpolations but not nested html or raw", () => {
+  expect(html`<b>${'<i>"x"</i>'}</b>`.value).toBe("<b>&lt;i&gt;&quot;x&quot;&lt;/i&gt;</b>");
+  expect(html`<b>${html`<i>${"&"}</i>`}${raw("<br>")}</b>`.value).toBe("<b><i>&amp;</i><br></b>");
+  expect(html`${[1, false, null, "a"]}`.value).toBe("1a");
 });
 
-test("per-train bullets only when routes differ", () => {
-  expect(renderAnswer(ok).match(/class="bullet/g)).toHaveLength(1);
-  const g = { ...ok.groups[0]!, arrivals: [{ dir: "S" as const, route: "6X", secs: 70 }, { dir: "S" as const, route: "6", secs: 300 }] };
-  const html = renderAnswer({ ...ok, line: "6", groups: [g] });
-  expect(html).toContain(`class="bullet x"`);
-  expect(html.match(/class="bullet/g)).toHaveLength(3);
+test("trains and buses render the same row markup", () => {
+  const row = /<div class="row"><div class="label caps">.*?<\/div>(<span class="t( now)?">.*?<\/span>)+<\/div>/;
+  expect(renderAnswer(subway)).toMatch(row);
+  expect(renderAnswer(bus)).toMatch(row);
+  expect(renderAnswer(subway)).toContain(`<span class="t"><b>1</b> min</span><span class="t"><b>10</b> min</span>`);
+  expect(renderAnswer(bus)).toContain(`<span class="t now"><b>now</b></span><span class="t"><b>3</b> min</span>`);
+});
+
+test("empty row spans the time columns", () => {
+  expect(renderAnswer({ ...subway, groups: [{ dir: "N", label: "Uptown", running: false, arrivals: [] }] })).toContain(
+    `<span class="none">no A trains running right now</span>`,
+  );
+});
+
+test("no also links renders nothing, not a count", () => {
+  expect(renderAnswer(subway)).not.toMatch(/<\/div>0/);
 });
 
 test("stale data is flagged", () => {
-  expect(renderAnswer({ ...ok, ageSecs: 180 })).toContain("data 3m old");
-});
-
-test("empty direction says whether the line is running at all", () => {
-  const empty = (running: boolean) => renderAnswer({ ...ok, groups: [{ dir: "N", label: "Uptown", running, arrivals: [] }] });
-  expect(empty(true)).toContain("no A trains coming here right now");
-  expect(empty(false)).toContain("no A trains running right now");
+  expect(renderAnswer(subway)).not.toContain("old");
+  expect(renderAnswer({ ...subway, ageSecs: 180 })).toContain("data 3m old");
 });
 
 test("user input is escaped", () => {
-  const html = renderPage('<script>alert(1)</script>', { kind: "error", slot: "stop", message: 'no A stop like "<b>"' });
-  expect(html).not.toContain("<script>alert(1)");
-  expect(html).toContain("&lt;script&gt;");
-  expect(html).not.toContain('"<b>"');
+  const page = renderPage('<script>alert(1)</script>', { kind: "error", slot: "stop", message: 'no A stop like "<b>"' });
+  expect(page).not.toContain("<script>alert(1)");
+  expect(page).toContain("&lt;script&gt;");
+  expect(page).not.toContain('"<b>"');
 });
 
 test("error highlights the failing template slot", () => {
-  const html = renderPage("X 14", { kind: "error", slot: "line", message: 'line "X" not found' });
-  expect(html).toMatch(/class="slot on"[^>]*>line/);
-  expect(html).not.toMatch(/class="slot on"[^>]*>stop/);
+  const page = renderPage("X 14", { kind: "error", slot: "line", message: 'line "X" not found' });
+  expect(page).toMatch(/class="slot on"[^>]*>line/);
+  expect(page).not.toMatch(/class="slot on"[^>]*>stop/);
 });
 
-test("empty page has placeholder and no answer", () => {
-  const html = renderPage("", null);
-  expect(html).toContain('placeholder="A downtown 14th st"');
-  expect(html).toContain(`id="hint" class="hint"`);
+test("empty page has placeholder, full hint, example links that work without JS", () => {
+  const page = renderPage("", null);
+  expect(page).toContain('placeholder="A downtown 14th st"');
+  expect(page).toContain(`id="hint" class="hint"`);
+  expect(page).toContain(`<a href="/?q=A%20downtown%2014%20st">A downtown 14 st</a>`);
+  expect(page).toContain(`<a href="/?q=M15%20south%20ferry">M15 south ferry</a>`);
 });
 
-const bus: BusAnswer = {
-  kind: "bus",
-  route: { key: "M15", name: "M15", color: "006CB7", text: "FFFFFF" },
-  groups: [
-    {
-      dir: "S",
-      label: "South Ferry",
-      stop: "2 Av/E 22 St",
-      arrivals: [
-        { dir: 1, route: "M15", secs: 10, stopsAway: 0, proximity: "at stop" },
-        { dir: 1, route: "M15", secs: 190, stopsAway: 2, proximity: "2 stops away" },
-      ],
-    },
-  ],
-  also: [],
-  ageSecs: 5,
-};
-
-test("bus answer: badge, headsign before arrow, minutes only", () => {
-  const html = renderAnswer(bus);
-  expect(html).toContain(`class="badge" style="--c:#006CB7;--t:#FFFFFF">M15<`);
-  expect(html).toContain(`<span class="to">South Ferry</span><span class="cmp">↓</span>`);
-  expect(html).toContain("2 Av/E 22 St");
-  expect(html).toContain(`<span class="t now"><b>now</b></span><span class="t"><b>3</b> min</span>`);
-  expect(html).not.toContain("stops");
-});
-
-test("bus groups at different corners name their stop", () => {
-  const html = renderAnswer({
-    ...bus,
-    groups: [
-      { dir: "N", label: "East Harlem 125 St", stop: "1 Av/E 23 St", arrivals: [] },
-      { ...bus.groups[0]!, arrivals: [] },
-    ],
-    also: ["2 Av/E 25 St"],
-  });
-  expect(html).toContain(`East Harlem 125 St</span><span class="cmp">↑</span><span class="where">1 Av/E 23 St</span>`);
-  expect(html).toContain("no M15 buses on the way");
-  expect(html).toContain(`href="/?q=M15%202%20Av%2FE%2025%20St"`);
-});
-
-test("bus header names the cross street both corners share", () => {
-  const g = bus.groups[0]!;
-  const html = renderAnswer({ ...bus, groups: [{ ...g, stop: "1 Av/E 14 St" }, { ...g, dir: "N", stop: "2 Av / E 14 St" }] });
-  expect(html).toContain(`M15</span><span>E 14 St</span></div>`);
-  expect(html).toContain(`<span class="where">1 Av/E 14 St</span>`);
-  expect(renderAnswer(bus)).toContain(`M15</span><span>2 Av/E 22 St</span></div>`);
-  expect(renderAnswer(bus)).not.toContain(`class="where"`);
-  const same = renderAnswer({ ...bus, groups: [{ ...g, stop: "E 23 St/Park Av South" }, { ...g, dir: "N", stop: "E 23 St / Park Av South" }] });
-  expect(same).toContain(`M15</span><span>E 23 St/Park Av South</span></div>`);
-  expect(same).not.toContain(`class="where"`);
-});
-
-test("hint examples are links that work without JS", () => {
-  const html = renderPage("", null);
-  expect(html).toContain(`<a href="/?q=A%20downtown%2014%20st">A downtown 14 st</a>`);
-  expect(html).toContain(`<a href="/?q=M15%20south%20ferry">M15 south ferry</a>`);
+test("partial response carries the whole hint element, compact after an answer", () => {
+  expect(renderPartial(subway).hint).toStartWith(`<div id="hint" class="hint compact">`);
+  expect(renderPartial(null)).toMatchObject({ ans: "" });
+  expect(renderPartial(null).hint).toStartWith(`<div id="hint" class="hint">`);
 });

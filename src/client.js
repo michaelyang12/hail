@@ -1,31 +1,38 @@
 (() => {
+  const HISTORY_KEY = "hail:history";
+  const HISTORY_MAX = 10;
+  const RECENT_SHOWN = 4;
+  const RESIZE_MS = 180;
+  const FADE_MS = 150;
+
   const form = document.querySelector("form");
   const input = form.q;
   const ans = document.getElementById("ans");
-  const hint = document.getElementById("hint");
-  const KEY = "hail:history";
   const reduce = matchMedia("(prefers-reduced-motion: reduce)");
   let history = [];
-  try { history = JSON.parse(localStorage.getItem(KEY) || "[]"); } catch {}
+  try { history = JSON.parse(localStorage.getItem(HISTORY_KEY) || "[]"); } catch {}
   let pos = -1;
 
+  const hrefFor = (q) => "/?q=" + encodeURIComponent(q);
+
   const remember = (q) => {
-    history = [q, ...history.filter((h) => h !== q)].slice(0, 10);
-    try { localStorage.setItem(KEY, JSON.stringify(history)); } catch {}
+    history = [q, ...history.filter((h) => h !== q)].slice(0, HISTORY_MAX);
+    try { localStorage.setItem(HISTORY_KEY, JSON.stringify(history)); } catch {}
   };
 
   // Once there's an answer, the examples give way to the rider's own recent queries.
-  // Built with textContent because history is user input.
+  // The server's example link is the template, so the markup lives in one place.
   const showRecent = () => {
+    const hint = document.getElementById("hint");
     const ex = hint.querySelector(".ex");
-    const recent = history.filter((h) => h !== input.value.trim()).slice(0, 4);
+    const recent = history.filter((h) => h !== input.value.trim()).slice(0, RECENT_SHOWN);
     if (!ex || !hint.classList.contains("compact") || !recent.length) return;
-    const lbl = document.createElement("span");
-    lbl.className = "lbl";
+    const lbl = ex.querySelector(".lbl");
+    const proto = ex.querySelector("a");
     lbl.textContent = "recent";
     ex.replaceChildren(lbl, ...recent.map((q) => {
-      const a = document.createElement("a");
-      a.href = "/?q=" + encodeURIComponent(q);
+      const a = proto.cloneNode(false);
+      a.href = hrefFor(q);
       a.textContent = q;
       return a;
     }));
@@ -42,10 +49,10 @@
     const to = form.offsetHeight;
     if (from !== to) {
       form.style.overflow = "hidden";
-      form.animate([{ height: from + "px" }, { height: to + "px" }], { duration: 180, easing: "cubic-bezier(.2,.8,.2,1)" })
+      form.animate([{ height: from + "px" }, { height: to + "px" }], { duration: RESIZE_MS, easing: "cubic-bezier(.2,.8,.2,1)" })
         .finished.finally(() => { form.style.overflow = ""; });
     }
-    ans.animate([{ opacity: 0.35 }, { opacity: 1 }], { duration: 150 });
+    ans.animate([{ opacity: 0.35 }, { opacity: 1 }], { duration: FADE_MS });
   };
 
   form.addEventListener("submit", async (e) => {
@@ -60,13 +67,12 @@
       swap(() => {
         form.classList.remove("busy");
         ans.innerHTML = data.ans;
-        hint.innerHTML = data.hint;
-        hint.className = data.compact ? "hint compact" : "hint";
+        document.getElementById("hint").outerHTML = data.hint;
         showRecent();
       });
-      window.history.replaceState(null, "", "/?q=" + encodeURIComponent(q));
+      window.history.replaceState(null, "", hrefFor(q));
     } catch {
-      location.href = "/?q=" + encodeURIComponent(q);
+      location.href = hrefFor(q);
     } finally {
       form.classList.remove("busy");
       pos = -1;

@@ -32,7 +32,10 @@ UI changes: also run `bun run dev` and check the page at phone and desktop width
 | `src/parse.ts` | Query → line + direction/stop variants |
 | `src/normalize.ts`, `src/match.ts` | Tokenizer shared by queries and station names; fuzzy stop scoring |
 | `src/feed.ts` | MTA GTFS-RT fetch and arrival extraction |
-| `src/render.ts` | All HTML. Inlines `style.css` and `client.js` into the page |
+| `src/board.ts` | `Board`: the one display shape for train and bus answers. Mode-specific presentation decisions live here |
+| `src/render.ts` | All HTML, built with `html```. Draws a `Board`, the hint, the page. Inlines `style.css` and `client.js` via text imports |
+| `src/html.ts` | `html``` tagged template (auto-escapes), `raw()`, `queryHref()` |
+| `src/style.css` | Theme variables on `:root` (colors, type scale, spacing); rows are one CSS grid with subgrid |
 | `src/client.js` | Optional progressive-enhancement JS (plain JS, not typechecked) |
 | `data/stations.csv` | MTA station list from data.ny.gov. Refresh command in README |
 | `test/fixtures/*.pb` | Captured real GTFS-RT feeds |
@@ -44,8 +47,10 @@ UI changes: also run `bun run dev` and check the page at phone and desktop width
 - Inject I/O through default parameters for tests: `answer(q, deps = { getArrivals })`, `getArrivals(line, stopId, now, fetcher = fetch)`. Tests pass fakes. Never hit the network in tests.
 - Tests live in `test/<module>.test.ts`, use `bun:test`, and assert on real station data (for example `A31` = 14 St on the A). See `test/answer.test.ts`.
 - `noUncheckedIndexedAccess` is on. Use `!` only where the index is known valid, as the existing code does.
-- Escape all interpolated text in HTML with `esc()` in `render.ts`.
-- The page must work without JavaScript. Every state is a GET URL (`/?q=...`); `client.js` only upgrades form submits to `?partial=1` fetches.
+- Build HTML with `html```; it escapes every interpolated value. Use `raw()` only for trusted markup. Guard conditionals with booleans (`xs.length > 0 && ...`), since a bare `0` renders as "0".
+- Train and bus answers render through the same `Board`. Put mode-specific display logic in `board.ts`, not in `render.ts`, so the two stay visually identical.
+- CSS: use the `:root` variables instead of literal colors or sizes, and let grid/flex size things from content. No hand-computed widths.
+- The page must work without JavaScript. Every state is a GET URL (`/?q=...`); `client.js` only upgrades form submits and query links to `?partial=1` fetches (`PartialResponse` in `render.ts`).
 - Comments explain *why* (MTA quirks, invariants), not what. Keep that density.
 - Direction labels come from the station CSV (`northLabel`/`southLabel`), not hardcoded boroughs. Some are `"NaN"` or `"Last Stop"`; see `label()` and the terminal filter in `answer.ts`.
 
