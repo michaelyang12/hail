@@ -156,8 +156,6 @@ body {
 .gram { display: flex; flex-wrap: wrap; gap: var(--space); }
 .gram .slot { color: var(--ink); font-weight: 700; }
 .gram .slot.opt { color: var(--mute); font-weight: 400; }
-.gram .slot.opt::after { content: "?"; }
-.gram .slot.on { color: var(--accent); text-decoration: underline; text-underline-offset: 0.1875rem; }
 .note { margin-top: var(--space-xs); }
 .ex { display: flex; flex-wrap: wrap; align-items: baseline; gap: 0.375rem; margin-top: var(--space); }
 .ex .lbl { margin-right: 0.125rem; }

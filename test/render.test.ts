@@ -47,10 +47,9 @@ test("user input is escaped", () => {
   expect(page).not.toContain('"<b>"');
 });
 
-test("error highlights the failing template slot", () => {
+test("the grammar reads as plain labels, never highlighted", () => {
   const page = renderPage("X 14", { kind: "error", slot: "line", message: 'line "X" not found' });
-  expect(page).toMatch(/class="slot on"[^>]*>line/);
-  expect(page).not.toMatch(/class="slot on"[^>]*>stop/);
+  expect(page).toContain(`<span class="slot">line</span><span class="slot opt">direction</span><span class="slot">stop</span>`);
 });
 
 test("empty page has placeholder, full hint, example links that work without JS", () => {

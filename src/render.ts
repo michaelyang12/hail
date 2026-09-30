@@ -1,7 +1,7 @@
 import { toBoard, type Board, type Chip } from "./board";
 import { STALE_SECS } from "./config";
 import { html, queryHref, raw, type Html } from "./html";
-import type { Answer, Slot } from "./model";
+import type { Answer } from "./model";
 // Text imports, so `bun --watch` reloads when either changes.
 import css from "./style.css" with { type: "text" };
 import js from "./client.js" with { type: "text" };
@@ -44,14 +44,10 @@ export function renderAnswer(a: Answer): string {
 const EXAMPLES = ["A downtown 14 st", "L bedford", "7 queens times sq", "M15 south ferry", "Q 86"];
 
 function hint(a: Answer | null): Html {
-  const slot: Slot | null = a?.kind === "error" ? a.slot : null;
-  const s = (name: string, on: boolean, opt = false) => html`<span class="slot${on ? " on" : ""}${opt ? " opt" : ""}">${name}</span>`;
+  const s = (name: string, opt = false) => html`<span class="slot${opt ? " opt" : ""}">${name}</span>`;
   // With an answer showing, the grammar steps back; client.js swaps the examples for recent queries.
   const compact = a !== null && a.kind !== "error";
-  return html`<div id="hint" class="hint${compact ? " compact" : ""}"><div class="gram caps">${s("line", slot === "line")}${s("direction", false, true)}${s(
-    "stop",
-    slot === "stop",
-  )}</div><div class="note">direction is optional: up / down, n / s, a borough, or where the bus is headed</div><div class="ex"><span class="lbl caps">try</span>${EXAMPLES.map(
+  return html`<div id="hint" class="hint${compact ? " compact" : ""}"><div class="gram caps">${s("line")}${s("direction", true)}${s("stop")}</div><div class="note">direction is optional: up / down, n / s, a borough, or where the bus is headed</div><div class="ex"><span class="lbl caps">try</span>${EXAMPLES.map(
     (q) => html`<a href="${queryHref(q)}">${q}</a>`,
   )}</div></div>`;
 }

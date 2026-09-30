@@ -42,7 +42,7 @@ UI changes: also run `bun run dev` and check the page at phone and desktop width
 
 ## Conventions
 
-- Expected failures are values, not throws. Parsers return a `Failure` (`{ ok: false, slot, message }`); answer builders return an `ErrorAnswer` via `errorAnswer()`. `Slot` (`"line" | "stop"`, or `null`) tells the UI which hint slot to highlight. Only `FeedError` is thrown, and `orFeedError()` converts it.
+- Expected failures are values, not throws. Parsers return a `Failure` (`{ ok: false, slot, message }`); answer builders return an `ErrorAnswer` via `errorAnswer()`. `Slot` (`"line" | "stop"`, or `null`) records which part of the query failed; the hint no longer highlights it. Only `FeedError` is thrown, and `orFeedError()` converts it.
 - Error messages are lowercase, terse, and user-facing: `no A stop like "fultn"`, `MTA feed unavailable, try again`.
 - Inject I/O through default parameters for tests: `answer(q, deps = { getArrivals })`, `getArrivals(line, stopId, now, fetcher = fetch)`. Tests pass fakes. Never hit the network in tests.
 - Tests live in `test/<module>.test.ts`, use `bun:test`, and assert on real station data (for example `A31` = 14 St on the A). See `test/answer.test.ts`.
