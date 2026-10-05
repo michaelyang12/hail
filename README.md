@@ -55,6 +55,17 @@ Then add a tunnel ingress rule, e.g. in `~/.cloudflared/config.yml`:
   service: http://localhost:3000
 ```
 
+## Logs
+
+hail writes one JSON line per event to stdout (pino): a `request` line per request (query, mode, outcome, status, ms), an `upstream fetch` line per MTA or Bus Time call, and `warn` lines for feed errors and stale data. Every line carries a `reqId` (the Cloudflare ray id behind the tunnel). Set `LOG_LEVEL` to `debug` to also see cache hits and empty-page loads (the healthcheck), or `warn` for problems only.
+
+```sh
+docker logs -f hail | bunx pino-pretty                 # Docker
+journalctl --user -u hail -f -o cat | bunx pino-pretty  # systemd
+```
+
+`bun run dev` pipes through `pino-pretty` already.
+
 ## Data
 
 `data/stations.csv` is the MTA station list from [data.ny.gov](https://data.ny.gov/Transportation/MTA-Subway-Stations/39hk-dx4f). Refresh occasionally:

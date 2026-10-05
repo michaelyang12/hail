@@ -1,9 +1,10 @@
 import GtfsRealtimeBindings from "gtfs-realtime-bindings";
 import { ttlCache } from "./cache";
-import { FEED_TIMEOUT_MS, FEED_TTL_SECS } from "./config";
+import { FEED_TIMEOUT_MS, FEED_TTL_SECS, STALE_SECS } from "./config";
 import type { Dir } from "./directions";
 import { FeedError } from "./errors";
 import { feedsFor, routeIdsFor } from "./lines";
+import { log } from "./log";
 
 type FeedMessage = GtfsRealtimeBindings.transit_realtime.FeedMessage;
 type Fetcher = (url: string, init?: RequestInit) => Promise<Response>;
@@ -57,16 +58,16 @@ export function runningDirs(msg: FeedMessage, routeIds: Set<string>, now: number
   return out;
 }
 
-const cache = ttlCache<FeedMessage>(FEED_TTL_SECS);
+const cache = ttlCache<FeedMessage>("mta", FEED_TTL_SECS);
 
 async function fetchFeed(path: string, fetcher: Fetcher): Promise<FeedMessage> {
   let res: Response;
   try {
     res = await fetcher(BASE + path, { signal: AbortSignal.timeout(FEED_TIMEOUT_MS) });
-  } catch {
-    throw new FeedError("MTA feed unavailable, try again");
+  } catch (e) {
+    throw new FeedError("MTA feed unavailable, try again", { cause: new Error(`${path}: ${(e as Error).message}`) });
   }
-  if (!res.ok) throw new FeedError("MTA feed unavailable, try again");
+  if (!res.ok) throw new FeedError("MTA feed unavailable, try again", { cause: new Error(`${path}: HTTP ${res.status}`) });
   return decode(new Uint8Array(await res.arrayBuffer()));
 }
 
@@ -81,5 +82,7 @@ export async function getArrivals(
   const arrivals = msgs.flatMap((m) => extractArrivals(m, routeIds, stopId, now)).sort((a, b) => a.secs - b.secs);
   const running = [...new Set(msgs.flatMap((m) => [...runningDirs(m, routeIds, now)]))];
   const oldest = Math.min(...msgs.map((m) => Number(m.header.timestamp)));
-  return { arrivals, running, ageSecs: Math.max(0, Math.round(now - oldest)) };
+  const ageSecs = Math.max(0, Math.round(now - oldest));
+  if (ageSecs > STALE_SECS) log().warn({ line, feeds: feedsFor(line), ageSecs }, "stale feed");
+  return { arrivals, running, ageSecs };
 }

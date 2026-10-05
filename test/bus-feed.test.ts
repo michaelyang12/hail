@@ -5,6 +5,7 @@ import { FeedError } from "../src/errors";
 // Built from the SIRI v2 StopMonitoring schema Bus Time documents, not recorded live.
 const fixture = await Bun.file(new URL("./fixtures/siri-m15.json", import.meta.url)).json();
 const errFixture = await Bun.file(new URL("./fixtures/siri-error.json", import.meta.url)).json();
+const badKeyFixture = await Bun.file(new URL("./fixtures/siri-bad-key.json", import.meta.url)).json();
 const now = Date.parse("2026-09-29T08:30:10.000-04:00") / 1000;
 const M15 = new Set(["MTA NYCT_M15"]);
 
@@ -46,6 +47,8 @@ test("reads SIRI v1 distances too", () => {
 
 test("Bus Time error conditions become FeedError", () => {
   expect(() => extractBusArrivals(errFixture, M15, now)).toThrow("Bus Time: API key is not authorized.");
+  // The real bad-key response, which puts the error under VehicleMonitoringDelivery.
+  expect(() => extractBusArrivals(badKeyFixture, M15, now)).toThrow("Bus Time: API key is not authorized.");
   expect(() => extractBusArrivals({} as never, M15, now)).toThrow(FeedError);
 });
 

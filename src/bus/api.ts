@@ -1,5 +1,6 @@
 import { BUS_ANSWER_TIMEOUT_MS, PER_DIR } from "../config";
 import { orFeedError } from "../errors";
+import { log } from "../log";
 import { errorAnswer, noStop, type BusAnswer, type BusGroup, type ErrorAnswer } from "../model";
 import { busData, type BusData } from "./data";
 import { getBusArrivals, type BusFeedResult } from "./feed";
@@ -51,12 +52,15 @@ export async function lookup(q: string, deps: BusDeps = live): Promise<BusAnswer
 export async function busAnswer(q: string, impl: Impl = (q) => lookup(q), timeoutMs = BUS_ANSWER_TIMEOUT_MS): Promise<BusAnswer | ErrorAnswer> {
   let timer: ReturnType<typeof setTimeout> | undefined;
   const timeout = new Promise<ErrorAnswer>((resolve) => {
-    timer = setTimeout(() => resolve(errorAnswer(null, "bus data timed out, try again")), timeoutMs);
+    timer = setTimeout(() => {
+      log().warn({ q, timeoutMs }, "bus lookup timed out");
+      resolve(errorAnswer(null, "bus data timed out, try again"));
+    }, timeoutMs);
   });
   try {
     return await Promise.race([impl(q), timeout]);
   } catch (e) {
-    console.error("bus:", e);
+    log().error({ err: e, q }, "bus lookup crashed");
     return errorAnswer(null, "bus data unavailable, try again");
   } finally {
     clearTimeout(timer);

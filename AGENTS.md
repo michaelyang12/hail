@@ -8,7 +8,7 @@ Current state, known gaps, and next ideas live in `LEDGER.md`. Read it first.
 
 ```sh
 bun install
-bun run dev            # http://127.0.0.1:3000, reloads on change
+bun run dev            # http://127.0.0.1:3000, reloads on change, pretty logs
 bun test               # offline, uses fixtures in test/fixtures/
 bun test test/answer.test.ts -t "borough"   # one file / tests matching a name
 bun run typecheck      # tsc --noEmit, strict + noUncheckedIndexedAccess
@@ -28,6 +28,7 @@ UI changes: also run `bun run dev` and check the page at phone and desktop width
 | `src/bus/` | Bus equivalent: `parse`, `match`, `feed` (Bus Time SIRI), `api` (orchestration), `data` (`data/bus.json`) |
 | `src/lines.ts` | Per-line table: feeds, feed route ids, express ids, colors; `displayRoute()` |
 | `src/directions.ts` | Direction words, boroughs, arrows |
+| `src/log.ts` | pino logger; `log()` returns the current request's child logger (AsyncLocalStorage) |
 | `src/config.ts`, `src/cache.ts`, `src/errors.ts` | Shared TTLs and timeouts; the per-key feed cache; `FeedError` and `orFeedError()` |
 | `src/parse.ts` | Query → line + direction/stop variants |
 | `src/normalize.ts`, `src/match.ts` | Tokenizer shared by queries and station names; fuzzy stop scoring |
@@ -51,6 +52,7 @@ UI changes: also run `bun run dev` and check the page at phone and desktop width
 - Train and bus answers render through the same `Board`. Put mode-specific display logic in `board.ts`, not in `render.ts`, so the two stay visually identical.
 - CSS: use the `:root` variables instead of literal colors or sizes, and let grid/flex size things from content. No hand-computed widths.
 - The page must work without JavaScript. Every state is a GET URL (`/?q=...`); `client.js` only upgrades form submits and query links to `?partial=1` fetches (`PartialResponse` in `render.ts`).
+- Logging: `log().info/warn/error({ fields }, "short message")`, structured fields over interpolated strings. `info` for requests and upstream fetches, `warn` for degraded service (feed errors, stale data, timeouts), `error` for bugs (crashes, unhandled errors), `debug` for noise (cache hits, healthchecks). Throw `FeedError` with a `cause` saying what actually happened; `orFeedError()` logs it. Never log the Bus Time key: `scrub()` any upstream error text, and don't name a field `key` (redacted).
 - Comments explain *why* (MTA quirks, invariants), not what. Keep that density.
 - Direction labels come from the station CSV (`northLabel`/`southLabel`), not hardcoded boroughs. Some are `"NaN"` or `"Last Stop"`; see `label()` and the terminal filter in `answer.ts`.
 
@@ -64,7 +66,8 @@ UI changes: also run `bun run dev` and check the page at phone and desktop width
 
 - Don't add background polling, timers, or cache refreshers. Feeds are fetched only when a request comes in (keeps it free and idle). The cache in `cache.ts` just expires.
 - Don't add a frontend framework or build step. Bun serves `src/` directly, and the Dockerfile copies only `src/` and `data/`.
-- Don't add dependencies without asking. There is one runtime dep (`gtfs-realtime-bindings`) on purpose.
+- Don't add dependencies without asking. Runtime deps are `gtfs-realtime-bindings` and `pino`, on purpose.
+- Don't use `console.*`. Log through `log()` from `src/log.ts`.
 - Don't hand-edit `data/stations.csv`. Re-download it (README), then run tests, which pin known stop ids.
 - Don't break the SIGTERM/SIGINT handlers in `server.ts`. As PID 1 in Docker, the process would otherwise ignore `docker stop`.
 

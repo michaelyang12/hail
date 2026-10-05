@@ -17,6 +17,7 @@ _Last updated: 2026-09-29_
 - Hint shows the grammar (failing slot highlighted on errors) and tappable example queries, all plain GET links.
 - Works without JS; with JS, submits and links use `?partial=1`, the old answer dims while loading, the card animates to its new height (off under reduced motion), and after an answer the examples are replaced by recent queries. Up/down-arrow history in localStorage (last 10).
 - The UI scales with the viewport (phone and desktop).
+- Structured JSON logs (pino) to stdout: one line per request and per upstream fetch, warnings for feed errors (with the real cause) and stale data, errors for crashes. Request ids come from Cloudflare's ray id. `LOG_LEVEL` controls verbosity; the Bus Time key is scrubbed.
 - Deploy: Dockerfile (graceful SIGTERM) or systemd user unit (`deploy/hail.service`), both behind a Cloudflare Tunnel.
 
 ## Known gaps
